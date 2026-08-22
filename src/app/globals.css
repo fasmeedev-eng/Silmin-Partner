@@ -1,26 +1,227 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Design tokens — ขาว / เหลือง #FFE169 / ดำ
+
+   กฎสำคัญของโทนนี้: #FFE169 สว่างมาก คอนทราสต์กับพื้นขาวได้แค่ 1.3:1
+   จึงใช้เป็น "พื้น" บนพื้นสว่างเท่านั้น (ปุ่ม ชิปไอคอน เส้นคั่น) ห้ามใช้เป็นสีตัวอักษรบนขาวเด็ดขาด
+   - บนพื้นสว่าง ตัวอักษร/ไอคอนที่ต้องเป็นสี accent ใช้ --accent-ink (เหลืองเข้ม 5.1:1)
+   - บนพื้นมืด ใช้ --accent ตรง ๆ ได้เลย (เหลืองบนดำ ~13:1)
+   เทาทุกระดับเอียงอุ่นเข้าหาเหลือง ไม่ใช้เทากลางที่ไม่มีที่มา
+   ───────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* surface */
+  --canvas: #ffffff;
+  --parchment: #f7f6f1;
+  --pearl: #fcfbf6;
+  --tile: #161513;
+  --tile-alt: #201f1c;
+  --nav: #0b0b0a;
+
+  /* ink */
+  --ink: #16150f;
+  --ink-80: #3b382f;
+  --ink-48: #78736a;
+  --on-dark: #ffffff;
+  --on-dark-muted: #c9c5bb;
+
+  /* line */
+  --hairline: #e5e2d8;
+  --divider-soft: #f1efe7;
+
+  /* accent — เหลืองเดียว ต่างกันแค่ระดับความสว่าง */
+  --accent: #ffe169;
+  --accent-hover: #ffd633;
+  --accent-ink: #8a6a00;
+  --accent-focus: #8a6a00;
+  --accent-on-dark: #ffe169;
+  --on-accent: #16150f;
+
+  /* Latin/ตัวเลข ใช้สแตกตาม DESIGN.md ก่อน — สระ/วรรณยุกต์ไทยตกมาที่ IBM Plex Sans Thai
+     ประกาศไว้ที่ :root ไม่ใช่ใน @theme inline เพราะ inline จะไม่ปล่อยตัวแปรออกมาให้ var() ใช้ */
+  --font-stack-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", var(--font-plex-thai, "IBM Plex Sans Thai"), "Helvetica Neue", Arial, sans-serif;
+  --font-stack-display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Segoe UI", var(--font-plex-thai, "IBM Plex Sans Thai"), "Helvetica Neue", Arial, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* ธีมมืด — พื้นดำอมอุ่น ส่วน --tile ต้องสว่างกว่า --canvas ไทล์มืดจึงยังแยกออกจากพื้นหน้า
+   บนพื้นมืด --accent-ink กลายเป็นเหลืองสด เพราะเหลืองบนดำอ่านออกดีมากอยู่แล้ว */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --canvas: #100f0e;
+    --parchment: #191816;
+    --pearl: #1e1d1a;
+    --tile: #232220;
+    --tile-alt: #2b2a26;
+    --nav: #000000;
+
+    --ink: #f6f4ee;
+    --ink-80: #cbc7bc;
+    --ink-48: #8c877c;
+
+    --hairline: #33322e;
+    --divider-soft: #262521;
+
+    --accent: #ffe169;
+    --accent-hover: #ffd633;
+    --accent-ink: #ffe169;
+    --accent-focus: #ffe169;
+    --on-accent: #16150f;
   }
 }
 
+:root[data-theme="dark"] {
+  --canvas: #100f0e;
+  --parchment: #191816;
+  --pearl: #1e1d1a;
+  --tile: #232220;
+  --tile-alt: #2b2a26;
+  --nav: #000000;
+
+  --ink: #f6f4ee;
+  --ink-80: #cbc7bc;
+  --ink-48: #8c877c;
+
+  --hairline: #33322e;
+  --divider-soft: #262521;
+
+  --accent: #ffe169;
+  --accent-hover: #ffd633;
+  --accent-ink: #ffe169;
+  --accent-focus: #ffe169;
+  --on-accent: #16150f;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-parchment: var(--parchment);
+  --color-pearl: var(--pearl);
+  --color-tile: var(--tile);
+  --color-tile-alt: var(--tile-alt);
+  --color-nav: var(--nav);
+
+  --color-ink: var(--ink);
+  --color-ink-80: var(--ink-80);
+  --color-ink-48: var(--ink-48);
+  --color-on-dark: var(--on-dark);
+  --color-on-dark-muted: var(--on-dark-muted);
+
+  --color-hairline: var(--hairline);
+  --color-divider-soft: var(--divider-soft);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-focus: var(--accent-focus);
+  --color-accent-on-dark: var(--accent-on-dark);
+  --color-on-accent: var(--on-accent);
+
+  --font-sans: var(--font-stack-sans);
+  --font-display: var(--font-stack-display);
+
+  /* type ladder — ไทยไม่ใช้ letter-spacing ติดลบ และต้องการ line-height สูงกว่า DESIGN.md */
+  --text-display: 3.25rem;
+  --text-display--line-height: 1.28;
+  --text-display--font-weight: 600;
+  --text-h2: 2.25rem;
+  --text-h2--line-height: 1.32;
+  --text-h2--font-weight: 600;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.45;
+  --text-h3--font-weight: 600;
+  --text-lead: 1.3125rem;
+  --text-lead--line-height: 1.62;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.62;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.6;
+  --text-fine: 0.75rem;
+  --text-fine--line-height: 1.55;
+
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 18px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-stack-sans);
+  font-size: 1.0625rem;
+  line-height: 1.62;
+  /* ภาษาไทยห้าม tracking ติดลบ — สระบนกับวรรณยุกต์ล่างจะชนกัน */
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(h1, h2, h3, h4) {
+  font-family: var(--font-stack-display);
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+/* โฟกัสคีย์บอร์ดต้องเห็นชัดเสมอ */
+:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* เงาเดียวในระบบ — ใช้กับภาพสินค้าที่วางบนพื้นผิวเท่านั้น */
+.product-shadow {
+  filter: drop-shadow(3px 5px 30px rgb(0 0 0 / 0.22));
+}
+
+/* popup เข้าสู่ระบบ — โผล่เร็วและเบา ไม่ให้รู้สึกว่าโดนขวางทาง */
+.login-dialog[open] {
+  animation: login-dialog-in 180ms ease-out;
+}
+
+.login-dialog[open]::backdrop {
+  animation: login-backdrop-in 180ms ease-out;
+}
+
+@keyframes login-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes login-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* FAQ accordion — ซ่อน marker เริ่มต้นของเบราว์เซอร์ */
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
 }
