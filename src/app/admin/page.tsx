@@ -1,5 +1,16 @@
 import Link from "next/link";
-import { AlertCircle, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import {
+  AlertCircle,
+  CircleCheck,
+  ChevronRight,
+  Inbox,
+  LayoutGrid,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { guardRole } from "@/lib/auth/guard";
 import {
   ADMIN_PAGE_SIZE,
@@ -8,8 +19,23 @@ import {
   listUsedProvinces,
   type ApplicationStatus,
 } from "@/lib/db/applications";
-import { STATUS_META, WORK_BUCKETS, bucketById, statusChipClass } from "@/lib/application/status";
+import {
+  STATUS_META,
+  WORK_BUCKETS,
+  bucketById,
+  statusChipClass,
+  type WorkBucketId,
+} from "@/lib/application/status";
 import { documentsComplete, missingCategories } from "@/lib/application/categories";
+
+// WORK_BUCKETS เป็นข้อมูลล้วน ใช้ทั้งฝั่งเซิร์ฟเวอร์ (กรองคิวรี) จึงไม่ใส่ไอคอนไว้ในนั้น
+// แมปแยกไว้ที่นี่ ที่เดียวที่ต้องเรนเดอร์จริง
+const BUCKET_ICONS: Record<WorkBucketId | "all", LucideIcon> = {
+  todo: Inbox,
+  doing: RefreshCw,
+  done: CircleCheck,
+  all: LayoutGrid,
+};
 
 export const metadata = { title: "ใบสมัคร" };
 
@@ -90,10 +116,12 @@ export default async function AdminQueuePage({
           : "ใบสมัครใหม่จะขึ้นที่นี่เองโดยอัตโนมัติ ตอนนี้ยังไม่มีใบไหนรออยู่"}
       </p>
 
-      {/* สามกองงานแทนเจ็ดสถานะ — ตอบได้ทันทีว่ากองไหนคืองานของวันนี้ */}
+      {/* สามกองงานแทนเจ็ดสถานะ — ตอบได้ทันทีว่ากองไหนคืองานของวันนี้
+          ไอคอนต่อกองช่วยให้จับกองที่ต้องการได้จากรูปทรง ไม่ต้องอ่านทุกคำ */}
       <nav aria-label="เลือกกลุ่มงาน" className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {WORK_BUCKETS.map((item) => {
           const active = !showAll && item.id === bucket.id;
+          const Icon = BUCKET_ICONS[item.id];
           return (
             <Link
               key={item.id}
@@ -101,7 +129,15 @@ export default async function AdminQueuePage({
               aria-current={active ? "page" : undefined}
               className={cardClass(active)}
             >
-              <p className="text-h3 tabular-nums">{bucketCount(item.statuses)}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-h3 tabular-nums">{bucketCount(item.statuses)}</p>
+                <span
+                  aria-hidden
+                  className={`flex size-9 shrink-0 items-center justify-center rounded-md ${active ? "bg-on-accent/15 text-on-accent" : "bg-pearl text-accent-ink"}`}
+                >
+                  <Icon className="size-4" />
+                </span>
+              </div>
               <p className="mt-1 text-body font-semibold">{item.label}</p>
               <p className={`mt-1 text-fine ${active ? "text-on-accent/70" : "text-ink-48"}`}>
                 {item.hint}
@@ -115,7 +151,15 @@ export default async function AdminQueuePage({
           aria-current={showAll ? "page" : undefined}
           className={cardClass(showAll)}
         >
-          <p className="text-h3 tabular-nums">{allCount}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-h3 tabular-nums">{allCount}</p>
+            <span
+              aria-hidden
+              className={`flex size-9 shrink-0 items-center justify-center rounded-md ${showAll ? "bg-on-accent/15 text-on-accent" : "bg-pearl text-accent-ink"}`}
+            >
+              <LayoutGrid className="size-4" />
+            </span>
+          </div>
           <p className="mt-1 text-body font-semibold">ทั้งหมด</p>
           <p className={`mt-1 text-fine ${showAll ? "text-on-accent/70" : "text-ink-48"}`}>
             ทุกใบที่เคยส่งเข้ามา
@@ -280,7 +324,14 @@ export default async function AdminQueuePage({
                         ส่งเมื่อ{" "}
                         {application.submittedAt ? thaiDate.format(application.submittedAt) : "—"}
                       </span>
-                      <span className={complete ? "text-ink-48" : "text-accent-ink"}>
+                      <span
+                        className={`inline-flex items-center gap-1 ${complete ? "text-ink-48" : "text-accent-ink"}`}
+                      >
+                        {complete ? (
+                          <CircleCheck aria-hidden className="size-3.5" />
+                        ) : (
+                          <TriangleAlert aria-hidden className="size-3.5" />
+                        )}
                         {complete ? "เอกสารครบ" : `ขาด${missing.map((c) => c.label).join(" และ ")}`}
                       </span>
                       <span className="tabular-nums text-ink-48">{application.applicationId}</span>

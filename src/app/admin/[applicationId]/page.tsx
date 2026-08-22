@@ -2,12 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  Briefcase,
   Clock,
   FileText,
   Mail,
   MessageCircle,
   Paperclip,
   Phone,
+  ShieldCheck,
+  Store,
+  User,
+  type LucideIcon,
 } from "lucide-react";
 import { guardRole } from "@/lib/auth/guard";
 import { can } from "@/lib/auth/permissions";
@@ -61,20 +66,26 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** ข้อมูลรายละเอียดพับเก็บได้ — เจ้าหน้าที่ส่วนใหญ่ดูแค่ชื่อร้าน เบอร์ และเอกสาร */
+/** ข้อมูลรายละเอียดพับเก็บได้ — เจ้าหน้าที่ส่วนใหญ่ดูแค่ชื่อร้าน เบอร์ และเอกสาร
+ *  ไอคอนช่วยให้กวาดสายตาหาบล็อกที่ต้องการโดยไม่ต้องอ่านหัวข้อทีละอัน */
 function Block({
   title,
+  icon: Icon,
   children,
   open = false,
 }: {
   title: string;
+  icon: LucideIcon;
   children: React.ReactNode;
   open?: boolean;
 }) {
   return (
     <details open={open} className="rounded-lg bg-canvas ring-1 ring-hairline ring-inset">
       <summary className="flex min-h-[60px] cursor-pointer items-center justify-between gap-4 px-6 text-body font-semibold">
-        {title}
+        <span className="flex items-center gap-2.5">
+          <Icon aria-hidden className="size-4 shrink-0 text-accent-ink" />
+          {title}
+        </span>
         <span aria-hidden className="text-caption font-normal text-ink-48">
           แตะเพื่อเปิด/ปิด
         </span>
@@ -200,7 +211,10 @@ export default async function AdminApplicationPage({
       {/* เอกสารเปิดไว้เสมอ เพราะเป็นสิ่งที่ต้องดูก่อนตัดสินใจ */}
       <section className="mt-6 rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-body font-semibold">เอกสารที่ร้านแนบมา</h2>
+          <h2 className="flex items-center gap-2 text-body font-semibold">
+            <Paperclip aria-hidden className="size-4 text-ink-48" />
+            เอกสารที่ร้านแนบมา
+          </h2>
           <span
             className={`inline-flex min-h-[28px] items-center rounded-full px-4 text-fine font-semibold ${complete ? "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset" : "bg-accent text-on-accent"
               }`}
@@ -257,9 +271,12 @@ export default async function AdminApplicationPage({
         )}
       </section>
 
-      <h2 className="mt-10 text-body font-semibold">ข้อมูลที่ร้านกรอกมา</h2>
+      <h2 className="mt-10 flex items-center gap-2 text-body font-semibold">
+        <FileText aria-hidden className="size-4 text-ink-48" />
+        ข้อมูลที่ร้านกรอกมา
+      </h2>
       <div className="mt-3 space-y-3">
-        <Block title="ข้อมูลร้าน" open>
+        <Block title="ข้อมูลร้าน" icon={Store} open>
           <Row label="ชื่อร้านค้า" value={data.shop.name} />
           <Row
             label="ประเภทร้าน"
@@ -273,7 +290,7 @@ export default async function AdminApplicationPage({
           />
         </Block>
 
-        <Block title="ผู้ติดต่อ">
+        <Block title="ผู้ติดต่อ" icon={User}>
           <Row label="ชื่อ–นามสกุล" value={data.contact.fullName} />
           <Row
             label="ตำแหน่ง"
@@ -288,7 +305,7 @@ export default async function AdminApplicationPage({
           <Row label="อีเมล" value={data.contact.email} />
         </Block>
 
-        <Block title="ธุรกิจและการขาย">
+        <Block title="ธุรกิจและการขาย" icon={Briefcase}>
           <Row label="สินค้าที่จำหน่าย" value={labelsOf(PRODUCTS, data.business.products)} />
           <Row label="แบรนด์ที่จำหน่าย" value={labelsOf(BRANDS, data.business.brands)} />
           <Row label="ช่วงราคาที่ขาย" value={labelOf(PRICE_RANGES, data.sales.priceRange)} />
@@ -303,7 +320,7 @@ export default async function AdminApplicationPage({
         </Block>
 
         {application.consent ? (
-          <Block title="หลักฐานการยินยอม (PDPA)">
+          <Block title="หลักฐานการยินยอม (PDPA)" icon={ShieldCheck}>
             <Row
               label="ยืนยันข้อมูลจริง"
               value={
@@ -327,7 +344,10 @@ export default async function AdminApplicationPage({
       </div>
 
       <section className="mt-10">
-        <h2 className="text-body font-semibold">ประวัติของใบสมัครนี้</h2>
+        <h2 className="flex items-center gap-2 text-body font-semibold">
+          <Clock aria-hidden className="size-4 text-ink-48" />
+          ประวัติของใบสมัครนี้
+        </h2>
         {activities.length === 0 ? (
           <p className="mt-3 flex items-center gap-2 text-caption text-ink-48">
             <FileText aria-hidden className="size-4" />

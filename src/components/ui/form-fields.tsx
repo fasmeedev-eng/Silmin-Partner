@@ -76,6 +76,7 @@ export function SelectInput({
   options,
   placeholder,
   error,
+  disabled,
 }: {
   id: string;
   value: string;
@@ -83,17 +84,20 @@ export function SelectInput({
   options: readonly string[];
   placeholder: string;
   error?: string;
+  /** ใช้กับตัวเลือกที่ต้องรอเลือกช่องก่อนหน้าก่อน เช่น อำเภอรอจังหวัด ตำบลรออำเภอ */
+  disabled?: boolean;
 }) {
   return (
     <select
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : undefined}
       className={`${controlBase} ${error ? "ring-2 ring-accent-ink" : ""} ${
         value ? "" : "text-ink-48"
-      }`}
+      } disabled:cursor-not-allowed disabled:opacity-60`}
     >
       <option value="">{placeholder}</option>
       {options.map((option) => (

@@ -2,8 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { STEPS } from "@/lib/application/options";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  Check,
+  CircleCheck,
+  FileText,
+  MessageCircle,
+  Store,
+  TrendingUp,
+  User,
+  type LucideIcon,
+} from "lucide-react";
+import { STEPS, type StepId } from "@/lib/application/options";
 import { REQUIRED_CATEGORIES } from "@/lib/application/categories";
 import { validateStep, type ApplicationData } from "@/lib/application/schema";
 import { saveDraftAction, submitAction, updateApplicationAction } from "./actions";
@@ -18,6 +30,18 @@ import {
 } from "./steps";
 
 const LAST_STEP = STEPS.length - 1;
+
+// เฉพาะเรื่อง UI ล้วน ๆ จึงแยกออกจาก STEPS ใน options.ts ซึ่งเป็นข้อมูลที่ทั้งฝั่ง
+// เซิร์ฟเวอร์ (validation) และฝั่ง client ใช้ร่วมกัน — ไม่อยากให้ไอคอนเป็นภาระของฝั่งเซิร์ฟเวอร์
+const STEP_ICONS: Record<StepId, LucideIcon> = {
+  shop: Store,
+  contact: User,
+  business: Briefcase,
+  sales: TrendingUp,
+  documents: FileText,
+  interests: MessageCircle,
+  review: CircleCheck,
+};
 
 export function ApplyForm({
   initialData,
@@ -46,6 +70,7 @@ export function ApplyForm({
   const submittedRef = useRef(false);
 
   const step = STEPS[stepIndex];
+  const StepIcon = STEP_ICONS[step.id];
 
   // ต้อง useCallback ไว้เสมอ — ถ้าเป็นแอร์โรว์อินไลน์ใน JSX มันจะได้ identity ใหม่ทุก render
   // แล้ว DocumentsStep จะ re-run effect ที่เรียก callback นี้ทุกครั้งที่ re-render จนวนลูปไม่รู้จบ
@@ -158,7 +183,7 @@ export function ApplyForm({
       setErrors(result.errors ?? {});
       setSubmitError(
         result.message ??
-          (applicationId ? "บันทึกการแก้ไขไม่สำเร็จ" : "ส่งใบสมัครไม่สำเร็จ กรุณาลองอีกครั้ง"),
+        (applicationId ? "บันทึกการแก้ไขไม่สำเร็จ" : "ส่งใบสมัครไม่สำเร็จ กรุณาลองอีกครั้ง"),
       );
     });
   };
@@ -166,7 +191,7 @@ export function ApplyForm({
   const stepProps = { data, errors, update };
 
   return (
-    <div className="mx-auto w-full max-w-[720px] px-6 pb-24 pt-8 sm:px-8 sm:pb-20">
+    <div className="mx-auto w-full max-w-[1040px] px-6 pb-24 pt-8 sm:px-8 sm:pb-20">
       {/* แถบความคืบหน้า — บอกเสมอว่าอยู่ขั้นไหนและเหลืออีกกี่ขั้น */}
       <div>
         <div className="flex items-baseline justify-between gap-4">
@@ -194,13 +219,22 @@ export function ApplyForm({
         </div>
       </div>
 
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        className="mt-8 text-h3 focus:outline-none sm:text-h2"
-      >
-        {step.title}
-      </h1>
+      {/* ไอคอนต่อขั้น ช่วยให้กวาดสายตาแล้วจับได้ทันทีว่ากำลังอยู่ขั้นไหนในฟอร์ม 7 ขั้น */}
+      <div className="mt-8 flex items-center gap-3">
+        <span
+          aria-hidden
+          className="flex size-11 shrink-0 items-center justify-center rounded-md bg-pearl text-accent-ink"
+        >
+          <StepIcon className="size-5" strokeWidth={2} />
+        </span>
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-h3 focus:outline-none sm:text-h2"
+        >
+          {step.title}
+        </h1>
+      </div>
 
       <div className="mt-6">
         {step.id === "shop" ? <ShopStep {...stepProps} /> : null}

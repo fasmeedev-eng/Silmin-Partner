@@ -30,7 +30,7 @@ export default async function MyApplicationsPage() {
     <>
       <SiteHeader signedIn email={session.user.email} role={session.user.role} />
 
-      <main className="mx-auto w-full max-w-[820px] px-6 py-12 sm:px-8 sm:py-16">
+      <main className="mx-auto w-full max-w-[1040px] px-6 py-12 sm:px-8 sm:py-16">
         <h1 className="text-h3 sm:text-h2">ใบสมัครของฉัน</h1>
         <p className="mt-4 max-w-[56ch] text-body text-ink-80">
           ทุกใบที่คุณส่งเข้ามาจะอยู่ที่นี่ พร้อมสถานะล่าสุด

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
+import { ShieldCheck, TriangleAlert, User, UserCog, type LucideIcon } from "lucide-react";
 import { ROLE_LABELS, ROLES, type Role } from "@/lib/auth/roles";
 import { changeRoleAction, toggleActiveAction } from "./actions";
 
@@ -17,6 +17,13 @@ const ROLE_EFFECT: Record<Role, string> = {
   customer: "เห็นเฉพาะใบสมัครของตัวเอง เข้าระบบหลังบ้านไม่ได้",
   employee: "เข้าหลังบ้านได้ ดูใบสมัครทุกใบ ทำได้ตามสิทธิ์ที่ตั้งไว้ในหน้าสิทธิ์พนักงาน",
   admin: "ทำได้ทุกอย่าง รวมถึงแก้บทบาทและสิทธิ์ของคนอื่น",
+};
+
+/** ไอคอนต่อบทบาท ช่วยกวาดหาแอดมิน/พนักงานในลิสต์ยาว ๆ ได้โดยไม่ต้องอ่านทุกแถว */
+const ROLE_ICONS: Record<Role, LucideIcon> = {
+  customer: User,
+  employee: UserCog,
+  admin: ShieldCheck,
 };
 
 export function UserRow({
@@ -54,6 +61,8 @@ export function UserRow({
     };
   }, []);
 
+  const RoleIcon = ROLE_ICONS[user.role];
+
   const run = (fn: () => Promise<{ ok: boolean; message?: string }>) => {
     setError(undefined);
     start(async () => {
@@ -71,12 +80,20 @@ export function UserRow({
     <>
       <li className="rounded-lg bg-canvas p-5 ring-1 ring-hairline ring-inset">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-body font-semibold">{user.name || "—"}</p>
-            <p className="break-all text-caption text-ink-48">{user.email}</p>
-            {isSelf ? (
-              <p className="mt-1 text-fine font-semibold text-accent-ink">นี่คือบัญชีของคุณ</p>
-            ) : null}
+          <div className="flex min-w-0 items-start gap-3">
+            <span
+              aria-hidden
+              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-pearl text-accent-ink"
+            >
+              <RoleIcon className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-body font-semibold">{user.name || "—"}</p>
+              <p className="break-all text-caption text-ink-48">{user.email}</p>
+              {isSelf ? (
+                <p className="mt-1 text-fine font-semibold text-accent-ink">นี่คือบัญชีของคุณ</p>
+              ) : null}
+            </div>
           </div>
           <p className="text-fine text-ink-48">
             เข้าระบบล่าสุด {user.lastLoginAt ? thaiDate.format(new Date(user.lastLoginAt)) : "—"}

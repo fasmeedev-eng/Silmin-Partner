@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 import { signOut } from "@/auth";
 import { AuthCta } from "@/components/auth/auth-cta";
 import type { Role } from "@/lib/auth/roles";
@@ -59,9 +60,10 @@ export function SiteHeader({
             >
               <button
                 type="submit"
-                className="inline-flex min-h-[44px] items-center px-3 text-caption text-white/70 transition-colors hover:text-white"
+                className="inline-flex min-h-[44px] items-center gap-1.5 px-3 text-caption text-white/70 transition-colors hover:text-white"
               >
-                ออกจากระบบ
+                <LogOut aria-hidden className="size-4" />
+                <span className="hidden sm:inline">ออกจากระบบ</span>
               </button>
             </form>
           </div>

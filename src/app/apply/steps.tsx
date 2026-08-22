@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, TriangleAlert } from "lucide-react";
 import {
   BRANCH_COUNTS,
   BRANDS,
@@ -13,11 +13,21 @@ import {
   INTERESTS,
   PRICE_RANGES,
   PRODUCTS,
-  PROVINCES,
   SHOP_TYPES,
   labelOf,
   labelsOf,
 } from "@/lib/application/options";
+import {
+  THAI_PROVINCES,
+  districtsOf,
+  distanceKm,
+  englishNamesOf,
+  latLngOf,
+  matchAdminNames,
+  nearestSubDistrict,
+  subDistrictsOf,
+  zipCodeOf,
+} from "@/lib/application/thai-address";
 import type { ApplicationData } from "@/lib/application/schema";
 import {
   CheckboxGroup,
@@ -27,6 +37,7 @@ import {
   SelectInput,
   TextInput,
 } from "@/components/ui/form-fields";
+import { ShopMap } from "./shop-map";
 
 export interface StepProps {
   data: ApplicationData;
@@ -45,19 +56,142 @@ function SectionIntro({ children }: { children: React.ReactNode }) {
 
 export function ShopStep({ data, errors, update }: StepProps) {
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
+  // สถานะปักหมุดอัตโนมัติจากที่อยู่ — แยกจาก geoStatus เพราะคนละที่มาของพิกัด (ที่อยู่ vs ตำแหน่งเครื่อง)
+  const [addressGeoStatus, setAddressGeoStatus] = useState<"idle" | "not_found">("idle");
   const shop = data.shop;
   const setAddress = (patch: Partial<ApplicationData["shop"]["address"]>) =>
     update("shop", { address: { ...shop.address, ...patch } });
 
+  // ตัวเลือกของอำเภอ/ตำบลขึ้นกับสิ่งที่เลือกไว้ก่อนหน้า คำนวณใหม่ทุก render เพราะเป็นแค่การกรอง
+  // รายการที่โหลดไว้แล้วในหน่วยความจำ ไม่ได้ยิง request จึงไม่ต้อง useMemo
+  const districtOptions = districtsOf(shop.address.province);
+  const subDistrictOptions = subDistrictsOf(shop.address.province, shop.address.district);
+
+  // ปักหมุดอัตโนมัติตามตำบลที่เลือก — ค้นจากฐานข้อมูลที่มากับแอปเอง ไม่ยิง request ไปที่ไหน
+  // (ที่อยู่ไทยไม่มีตัวระบุพิกัดระดับเลขที่บ้านที่เชื่อถือได้ในข้อมูลเปิด แม่นสุดได้แค่ระดับตำบล
+  // ส่วนที่เหลือให้ผู้ใช้ลากหมุดไปตำแหน่งร้านจริงเอง) จำคีย์ล่าสุดไว้กันปักซ้ำเมื่อ re-render เฉย ๆ
+  const lastPinnedKeyRef = useRef<string>("");
+
+  useEffect(() => {
+    const { province, district, subDistrict } = shop.address;
+    if (!province || !district || !subDistrict) return;
+    const key = `${province}|${district}|${subDistrict}`;
+    if (key === lastPinnedKeyRef.current) return;
+    lastPinnedKeyRef.current = key;
+
+    const found = latLngOf(province, district, subDistrict);
+    if (found) {
+      update("shop", { lat: found.lat.toFixed(6), lng: found.lng.toFixed(6) });
+      setAddressGeoStatus("idle");
+    } else {
+      setAddressGeoStatus("not_found");
+    }
+  }, [shop.address, update]);
+
+  // เมื่อกรอกเลขที่/ถนนเพิ่มเติมหลังจากได้จุดกึ่งกลางตำบลแล้ว ลองขยับหมุดให้ใกล้ถนนจริงมากขึ้น
+  // เป็นแค่ตัว "ช่วยขยับให้ดีขึ้น" เงียบ ๆ ไม่ใช่การยืนยันตำแหน่งที่แม่นยำ — ที่อยู่ไทยไม่มีข้อมูลเปิด
+  // ที่แม่นถึงระดับเลขที่บ้าน ผลลัพธ์อาจยังห่างจากบ้านจริงอยู่บ้าง จึงต้องลากหมุดปรับเองเป็นขั้นสุดท้าย
+  const lastRefinedRef = useRef<string>("");
+
+  useEffect(() => {
+    const { province, district, subDistrict, line1, road } = shop.address;
+    if (!province || !district || !subDistrict) return;
+    const streetQuery = [line1, road].filter(Boolean).join(" ");
+    if (!streetQuery) return;
+    const key = `${province}|${district}|${subDistrict}|${streetQuery}`;
+    if (key === lastRefinedRef.current) return;
+
+    const timer = setTimeout(() => {
+      lastRefinedRef.current = key;
+      void (async () => {
+        const names = englishNamesOf(province, district);
+        if (!names) return;
+        try {
+          const params = new URLSearchParams({
+            street: streetQuery,
+            city: names.districtEn,
+            state: names.provinceEn,
+          });
+          const response = await fetch(`/api/geocode?${params}`);
+          const result = (await response.json()) as
+            | { found: true; lat: string; lng: string }
+            | { found: false };
+          if (!result.found) return;
+
+          const refined = { lat: Number(result.lat), lng: Number(result.lng) };
+          // เชื่อผลลัพธ์เฉพาะตอนยังอยู่ในย่านเดียวกัน (ไม่ไกลเกิน 10 กม.จากจุดกึ่งกลางตำบล)
+          // กันผลค้นหาที่หลุดไปไกลเพราะชื่อถนนไปตรงกับที่อื่นโดยบังเอิญ
+          const centroid = latLngOf(province, district, subDistrict);
+          if (centroid && distanceKm(centroid, refined) > 10) return;
+
+          update("shop", { lat: refined.lat.toFixed(6), lng: refined.lng.toFixed(6) });
+        } catch {
+          // เงียบไว้ — เป็นแค่ตัวช่วย ไม่ใช่ขั้นตอนบังคับ
+        }
+      })();
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [shop.address, update]);
+
   const shareLocation = () => {
     setGeoStatus("loading");
+    setAddressGeoStatus("idle");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        update("shop", {
-          lat: position.coords.latitude.toFixed(6),
-          lng: position.coords.longitude.toFixed(6),
-        });
-        setGeoStatus("idle");
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+        const lat = point.lat.toFixed(6);
+        const lng = point.lng.toFixed(6);
+
+        void (async () => {
+          // ทางหลัก: ย้อนกลับพิกัดผ่าน Nominatim แล้วจับคู่ชื่อจังหวัด/อำเภอ/ตำบลกับฐานข้อมูลแอป
+          // — ใช้ได้ทั้งกรุงเทพฯ และต่างจังหวัด (ต่างจาก nearestSubDistrict ที่กรุงเทพฯ ไม่มีพิกัด
+          // ตำบลเลยสักตำบลเดียวในฐานข้อมูล) เลขที่บ้าน/ถนนก็มาจากคำตอบเดียวกันนี้
+          let houseNumber = "";
+          let road = "";
+          let matched: ReturnType<typeof matchAdminNames> | undefined;
+          try {
+            const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+            const result = (await response.json()) as {
+              houseNumber: string;
+              road: string;
+              adminFields: string[];
+            };
+            houseNumber = result.houseNumber;
+            road = result.road;
+            matched = matchAdminNames(result.adminFields);
+          } catch {
+            // เงียบไว้ — ลองทางสำรองข้างล่างต่อ
+          }
+
+          // ทางสำรอง: ออฟไลน์ล้วน ๆ ถ้า Nominatim ใช้ไม่ได้หรือจับคู่ไม่เจอ (ใช้ไม่ได้ในกรุงเทพฯ)
+          const found = matched ?? nearestSubDistrict(point);
+
+          if (found) {
+            // กันไม่ให้ effect ปักหมุดอัตโนมัติจากที่อยู่ (ด้านบน) ทับพิกัด GPS ที่แม่นกว่า
+            // ด้วยจุดกึ่งกลางตำบลซึ่งหยาบกว่า — ต้องตั้งค่านี้ก่อนเรียก update เสมอ
+            lastPinnedKeyRef.current = `${found.province}|${found.district}|${found.subDistrict}`;
+          }
+
+          update("shop", {
+            lat,
+            lng,
+            address: {
+              ...shop.address,
+              ...(found
+                ? {
+                    province: found.province,
+                    district: found.district,
+                    subDistrict: found.subDistrict,
+                    postalCode: found.zip,
+                  }
+                : {}),
+              ...(houseNumber ? { line1: houseNumber } : {}),
+              ...(road ? { road } : {}),
+            },
+          });
+          setGeoStatus("idle");
+        })();
       },
       () => setGeoStatus("error"),
       { enableHighAccuracy: true, timeout: 10_000 },
@@ -121,7 +255,8 @@ export function ShopStep({ data, errors, update }: StepProps) {
       </Field>
 
       <fieldset>
-        <legend className="text-caption font-semibold text-ink">
+        <legend className="flex items-center gap-1.5 text-caption font-semibold text-ink">
+          <MapPin aria-hidden className="size-4 text-ink-48" />
           ที่อยู่ร้าน<span className="pl-1 text-accent-ink">*</span>
         </legend>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -140,32 +275,9 @@ export function ShopStep({ data, errors, update }: StepProps) {
               onChange={(road) => setAddress({ road })}
             />
           </Field>
-          <Field
-            id="addr-sub"
-            label="ตำบล / แขวง"
-            required
-            error={errors["shop.address.subDistrict"]}
-          >
-            <TextInput
-              id="addr-sub"
-              value={shop.address.subDistrict}
-              onChange={(subDistrict) => setAddress({ subDistrict })}
-              error={errors["shop.address.subDistrict"]}
-            />
-          </Field>
-          <Field
-            id="addr-district"
-            label="อำเภอ / เขต"
-            required
-            error={errors["shop.address.district"]}
-          >
-            <TextInput
-              id="addr-district"
-              value={shop.address.district}
-              onChange={(district) => setAddress({ district })}
-              error={errors["shop.address.district"]}
-            />
-          </Field>
+
+          {/* จังหวัด → อำเภอ → ตำบล เรียงตามลำดับที่เลือกจริง แต่ละขั้นล็อกไว้จนกว่าจะเลือกขั้นก่อนหน้า
+              เพื่อไม่ให้เลือกชุดที่ไม่มีจริง (เช่น อำเภอของอีกจังหวัดหนึ่ง) แล้วรหัสไปรษณีย์กรอกให้เองตอนเลือกตำบล */}
           <Field
             id="addr-province"
             label="จังหวัด"
@@ -175,57 +287,127 @@ export function ShopStep({ data, errors, update }: StepProps) {
             <SelectInput
               id="addr-province"
               value={shop.address.province}
-              onChange={(province) => setAddress({ province })}
-              options={PROVINCES}
+              onChange={(province) =>
+                setAddress({ province, district: "", subDistrict: "", postalCode: "" })
+              }
+              options={THAI_PROVINCES}
               placeholder="เลือกจังหวัด"
               error={errors["shop.address.province"]}
+            />
+          </Field>
+          <Field
+            id="addr-district"
+            label="อำเภอ / เขต"
+            required
+            hint={shop.address.province ? undefined : "เลือกจังหวัดก่อน"}
+            error={errors["shop.address.district"]}
+          >
+            <SelectInput
+              id="addr-district"
+              value={shop.address.district}
+              onChange={(district) => setAddress({ district, subDistrict: "", postalCode: "" })}
+              options={districtOptions}
+              placeholder="เลือกอำเภอ / เขต"
+              error={errors["shop.address.district"]}
+              disabled={!shop.address.province}
+            />
+          </Field>
+          <Field
+            id="addr-sub"
+            label="ตำบล / แขวง"
+            required
+            hint={shop.address.district ? undefined : "เลือกอำเภอก่อน"}
+            error={errors["shop.address.subDistrict"]}
+          >
+            <SelectInput
+              id="addr-sub"
+              value={shop.address.subDistrict}
+              onChange={(subDistrict) =>
+                setAddress({
+                  subDistrict,
+                  postalCode: zipCodeOf(shop.address.province, shop.address.district, subDistrict),
+                })
+              }
+              options={subDistrictOptions}
+              placeholder="เลือกตำบล / แขวง"
+              error={errors["shop.address.subDistrict"]}
+              disabled={!shop.address.district}
             />
           </Field>
           <Field
             id="addr-post"
             label="รหัสไปรษณีย์"
             required
+            hint="ใส่ให้อัตโนมัติเมื่อเลือกตำบล / แขวง"
             error={errors["shop.address.postalCode"]}
           >
             <TextInput
               id="addr-post"
               value={shop.address.postalCode}
-              onChange={(postalCode) => setAddress({ postalCode: postalCode.replace(/\D/g, "") })}
+              onChange={() => {}}
+              readOnly
               error={errors["shop.address.postalCode"]}
               inputMode="numeric"
-              maxLength={5}
+              className="cursor-not-allowed bg-parchment text-ink-80"
             />
           </Field>
         </div>
       </fieldset>
 
-      <Field
-        id="geo"
-        label="พิกัดร้าน"
-        hint="ไม่บังคับ ช่วยให้ทีมขายหาร้านเจอ — กดตอนที่คุณอยู่ที่ร้าน เพราะระบบอ่านตำแหน่งของเครื่องคุณ ไม่ใช่ของร้าน"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={shareLocation}
-            disabled={geoStatus === "loading"}
-            className="inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-6 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment disabled:opacity-60"
-          >
-            <MapPin aria-hidden className="size-4" />
-            {geoStatus === "loading" ? "กำลังอ่านตำแหน่ง…" : "แชร์ตำแหน่งร้าน"}
-          </button>
-          {shop.lat && shop.lng ? (
-            <span className="text-caption text-ink-80">
-              บันทึกแล้ว {shop.lat}, {shop.lng}
-            </span>
+      {/* หัวข้อเขียนเป็น <p> ไม่ใช่ <label htmlFor> เพราะข้างล่างเป็นแผนที่กับปุ่ม ไม่มี input เดี่ยว
+          ให้ label ชี้ไปหาได้ตรง ๆ — label ที่ for ไม่มี id จริงเป็นบั๊กที่ผู้ใช้แจ้งมาก่อนหน้านี้ */}
+      <div>
+        <p className="block text-caption font-semibold text-ink">พิกัดร้าน</p>
+        <p className="mt-1 text-fine text-ink-48">
+          ไม่บังคับ — ปักหมุดให้อัตโนมัติตามที่อยู่ที่กรอกด้านบน หรือแตะบนแผนที่/ลากหมุดเพื่อปักเอง
+        </p>
+
+        <div className="mt-2 space-y-3">
+          <ShopMap
+            lat={shop.lat}
+            lng={shop.lng}
+            onPick={(lat, lng) => {
+              // ผู้ใช้ปักเอง — ไม่ต้องรอผลค้นหาที่อยู่ค้างอยู่อีก
+              setAddressGeoStatus("idle");
+              update("shop", { lat, lng });
+            }}
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={shareLocation}
+              disabled={geoStatus === "loading"}
+              className="inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-6 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment disabled:opacity-60"
+            >
+              <MapPin aria-hidden className="size-4" />
+              {geoStatus === "loading" ? "กำลังอ่านตำแหน่ง…" : "ใช้ตำแหน่งเครื่องฉัน"}
+            </button>
+            {shop.lat && shop.lng ? (
+              <span className="text-caption tabular-nums text-ink-80">
+                พิกัด {shop.lat}, {shop.lng}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-fine text-ink-48">
+            กดแล้วระบบจะกรอกจังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์ (และเลขที่/ถนนถ้าหาเจอ) ให้อัตโนมัติ
+            ตามตำแหน่งที่คุณยืนอยู่ตอนนี้ — ตรวจทานอีกครั้งก่อนไปขั้นต่อไปเสมอ
+          </p>
+
+          {addressGeoStatus === "not_found" ? (
+            <p role="alert" className="flex items-start gap-2 text-caption text-accent-ink">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              ไม่เจอที่อยู่นี้ กรุณาปักหมุดเอง — แตะตำแหน่งบนแผนที่หรือลากหมุดไปยังตำแหน่งร้านจริง
+            </p>
+          ) : null}
+          {geoStatus === "error" ? (
+            <p role="alert" className="flex items-start gap-2 text-caption text-accent-ink">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              อ่านตำแหน่งจากเครื่องไม่สำเร็จ อาจเพราะเบราว์เซอร์ไม่ได้รับอนุญาต ปักหมุดเองบนแผนที่ได้เลย
+            </p>
           ) : null}
         </div>
-        {geoStatus === "error" ? (
-          <p role="alert" className="mt-2 text-fine text-accent-ink">
-            อ่านตำแหน่งไม่สำเร็จ อาจเพราะเบราว์เซอร์ไม่ได้รับอนุญาต ข้ามขั้นนี้ไปก่อนได้
-          </p>
-        ) : null}
-      </Field>
+      </div>
     </div>
   );
 }

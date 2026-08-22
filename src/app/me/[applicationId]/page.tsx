@@ -103,7 +103,7 @@ export default async function ApplicationDetailPage({
     <>
       <SiteHeader signedIn email={session.user.email} role={session.user.role} />
 
-      <main className="mx-auto w-full max-w-[820px] px-6 py-12 sm:px-8 sm:py-16">
+      <main className="mx-auto w-full max-w-[1040px] px-6 py-12 sm:px-8 sm:py-16">
         <Link
           href="/me"
           className="inline-flex min-h-[44px] items-center gap-2 text-caption text-ink-80 transition-colors hover:text-ink"
@@ -178,9 +178,8 @@ export default async function ApplicationDetailPage({
                   style={{ borderColor: index <= current ? "var(--accent)" : "var(--hairline)" }}
                 >
                   <span
-                    className={`inline-flex size-6 items-center justify-center rounded-full text-fine font-semibold ${
-                      done || isCurrent ? "bg-accent text-on-accent" : "bg-pearl text-ink-48 ring-1 ring-hairline ring-inset"
-                    }`}
+                    className={`inline-flex size-6 items-center justify-center rounded-full text-fine font-semibold ${done || isCurrent ? "bg-accent text-on-accent" : "bg-pearl text-ink-48 ring-1 ring-hairline ring-inset"
+                      }`}
                   >
                     {done ? <Check aria-hidden className="size-3.5" strokeWidth={3} /> : index + 1}
                   </span>
