@@ -47,6 +47,13 @@ export function ApplyForm({
 
   const step = STEPS[stepIndex];
 
+  // ต้อง useCallback ไว้เสมอ — ถ้าเป็นแอร์โรว์อินไลน์ใน JSX มันจะได้ identity ใหม่ทุก render
+  // แล้ว DocumentsStep จะ re-run effect ที่เรียก callback นี้ทุกครั้งที่ re-render จนวนลูปไม่รู้จบ
+  const handleDocumentCounts = useCallback((counts: Record<string, number>) => {
+    setDocumentCounts(counts);
+    if (REQUIRED_CATEGORIES.every((c) => counts[c.id] > 0)) setDocumentError(false);
+  }, []);
+
   const update = useCallback<
     <K extends keyof ApplicationData>(section: K, patch: Partial<ApplicationData[K]>) => void
   >((section, patch) => {
@@ -202,10 +209,7 @@ export function ApplyForm({
         {step.id === "sales" ? <SalesStep {...stepProps} /> : null}
         {step.id === "documents" ? (
           <DocumentsStep
-            onCountsChange={(counts) => {
-              setDocumentCounts(counts);
-              if (REQUIRED_CATEGORIES.every((c) => counts[c.id] > 0)) setDocumentError(false);
-            }}
+            onCountsChange={handleDocumentCounts}
             showRequiredError={documentError}
             applicationId={applicationId}
           />

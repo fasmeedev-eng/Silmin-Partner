@@ -4,7 +4,7 @@ import { draftSchema, emptyApplication, type ApplicationData } from "@/lib/appli
 import { filedFileName, type DocumentRef } from "@/lib/application/documents";
 import { diffApplicationData, type FieldChange } from "@/lib/application/diff";
 import { REQUIRED_CATEGORIES } from "@/lib/application/categories";
-import { STATUS_META, isEditable } from "@/lib/application/status";
+import { EDITABLE_STATUSES, STATUS_META, isEditable } from "@/lib/application/status";
 import { canTransition } from "@/lib/application/transitions";
 import { moveAndRename } from "@/lib/drive/client";
 import { ensureFolders } from "@/lib/drive/folders";
@@ -195,6 +195,18 @@ interface DocumentAccessLog {
 const ACCESS_DEDUPE_MS = 10 * 60 * 1000;
 const recentAccess = new Map<string, number>();
 
+let documentAccessIndexesReady: Promise<void> | undefined;
+async function ensureDocumentAccessIndexes(): Promise<void> {
+  // ครั้งเดียวต่อ process เหมือน indexesReady ของ applications() — ไม่ใช่ยิงทุกครั้งที่บันทึก
+  documentAccessIndexesReady ??= (async () => {
+    const db = await getDb();
+    const col = db.collection<DocumentAccessLog>("documentAccess");
+    await col.createIndex({ applicationId: 1, at: -1 });
+    await col.createIndex({ actorUserId: 1, at: -1 });
+  })();
+  await documentAccessIndexesReady;
+}
+
 /**
  * บันทึกว่าเจ้าหน้าที่คนไหนเปิดเอกสารอะไรเมื่อไหร่
  *
@@ -203,14 +215,20 @@ const recentAccess = new Map<string, number>();
  */
 export async function logDocumentAccess(entry: Omit<DocumentAccessLog, "at">): Promise<void> {
   const key = `${entry.actorUserId}:${entry.documentId}`;
+  const now = Date.now();
   const last = recentAccess.get(key);
-  if (last && Date.now() - last < ACCESS_DEDUPE_MS) return;
-  recentAccess.set(key, Date.now());
+  if (last && now - last < ACCESS_DEDUPE_MS) return;
+  recentAccess.set(key, now);
 
+  // แมปนี้อยู่ยาวตลอดอายุ process — ล้างคู่ที่หมดอายุหน้าต่างกันดักซ้ำทุกครั้งที่เขียน
+  // ไม่งั้นทุกคู่เจ้าหน้าที่/เอกสารที่เคยเปิดดูจะค้างอยู่ในหน่วยความจำตลอดไป
+  for (const [k, t] of recentAccess) {
+    if (now - t >= ACCESS_DEDUPE_MS) recentAccess.delete(k);
+  }
+
+  await ensureDocumentAccessIndexes();
   const db = await getDb();
   const col = db.collection<DocumentAccessLog>("documentAccess");
-  await col.createIndex({ applicationId: 1, at: -1 });
-  await col.createIndex({ actorUserId: 1, at: -1 });
   await col.insertOne({ ...entry, at: new Date() });
 }
 
@@ -238,6 +256,19 @@ export interface SubmitMeta {
   userAgent: string;
 }
 
+/** เมื่อไม่พบร่างให้แปลง — หาใบที่ส่งไปแล้วล่าสุดของเจ้าของคนนี้แทนการสร้างใบใหม่ซ้ำ
+ *  เกิดได้เมื่อดับเบิลคลิกปุ่มส่งหรือเปิดสองแท็บพร้อมกัน คำขอที่มาทีหลังต้องคืนใบเดิม ไม่ใช่ใบใหม่ */
+async function mostRecentSubmitted(
+  col: Collection<ApplicationDoc>,
+  ownerUserId: string,
+): Promise<string | undefined> {
+  const doc = await col.findOne(
+    { ownerUserId, status: { $ne: "Draft" } },
+    { sort: { submittedAt: -1 }, projection: { applicationId: 1 } },
+  );
+  return doc?.applicationId;
+}
+
 /** เปลี่ยนร่างเป็นใบสมัครจริง คืนเลขที่ใบสมัคร */
 export async function submitApplication(
   ownerUserId: string,
@@ -246,17 +277,21 @@ export async function submitApplication(
 ): Promise<string> {
   const col = await applications();
   const now = new Date();
-  const applicationId = await nextApplicationId(now.getFullYear());
 
   const draft = await col.findOne(
     { ownerUserId, status: "Draft" },
     { projection: { documents: 1 } },
   );
-  const documents = await fileDocuments(
-    draft?.documents ?? [],
-    applicationId,
-    data.shop.name,
-  );
+  if (!draft) {
+    // ไม่มีร่างให้แปลง แปลว่าถูกส่งไปแล้วโดยคำขอที่ชนกัน — คืนใบเดิม อย่าสร้างใบซ้ำ
+    const existing = await mostRecentSubmitted(col, ownerUserId);
+    if (existing) return existing;
+    throw new Error("ไม่พบร่างใบสมัคร กรุณากรอกใหม่อีกครั้ง");
+  }
+
+  // ออกเลขที่ใบสมัครหลังยืนยันว่ามีร่างจริงแล้วเท่านั้น เพื่อไม่ให้เลขถูกใช้ทิ้งเปล่า ๆ
+  const applicationId = await nextApplicationId(now.getFullYear());
+  const documents = await fileDocuments(draft.documents ?? [], applicationId, data.shop.name);
 
   const consent = {
     truthful: { accepted: true, at: now },
@@ -266,6 +301,8 @@ export async function submitApplication(
     userAgent: meta.userAgent,
   };
 
+  // upsert: false โดยตั้งใจ — ถ้าไม่เจอร่างแล้ว (ถูกแปลงไปแล้วระหว่างที่กำลังย้ายไฟล์)
+  // ต้องไม่สร้างใบสมัครใหม่ซ้อนขึ้นมา
   const result = await col.findOneAndUpdate(
     { ownerUserId, status: "Draft" },
     {
@@ -278,10 +315,15 @@ export async function submitApplication(
         submittedAt: now,
         updatedAt: now,
       },
-      $setOnInsert: { ownerUserId, createdAt: now },
     },
-    { upsert: true, returnDocument: "after" },
+    { returnDocument: "after" },
   );
+
+  if (!result) {
+    const existing = await mostRecentSubmitted(col, ownerUserId);
+    if (existing) return existing;
+    throw new Error("ส่งใบสมัครไม่สำเร็จ กรุณาลองอีกครั้ง");
+  }
 
   // กันร่างผีฟื้น — ถ้า autosave ที่ตั้งเวลาไว้ฝั่ง client ยิงตามหลังการส่ง
   // มันจะ upsert ร่างใบใหม่ด้วยข้อมูลชุดเดิม แล้วผู้ใช้จะเห็นร่างค้างและอาจส่งซ้ำ
@@ -296,7 +338,7 @@ export async function submitApplication(
     at: now,
   });
 
-  return result?.applicationId ?? applicationId;
+  return result.applicationId ?? applicationId;
 }
 
 /**
@@ -507,11 +549,20 @@ export interface Activity {
   changes?: FieldChange[];
 }
 
+let activityIndexesReady: Promise<void> | undefined;
+async function ensureActivityIndexes(): Promise<void> {
+  activityIndexesReady ??= (async () => {
+    const db = await getDb();
+    await db.collection<Activity>("activities").createIndex({ applicationId: 1, at: -1 });
+  })();
+  await activityIndexesReady;
+}
+
 /** บันทึกร่องรอยการเปลี่ยนแปลง — ทุกการเปลี่ยนสถานะต้องรู้ว่าใครทำ เมื่อไหร่ เพราะอะไร */
 async function writeActivity(activity: Activity): Promise<void> {
+  await ensureActivityIndexes();
   const db = await getDb();
   const col = db.collection<Activity>("activities");
-  await col.createIndex({ applicationId: 1, at: -1 });
   await col.insertOne(activity);
 }
 
@@ -701,8 +752,10 @@ export async function addDocumentToApplication(
 ): Promise<boolean> {
   const col = await applications();
   const now = new Date();
+  // ใช้ EDITABLE_STATUSES เดียวกับ isEditable() แทนการฮาร์ดโค้ด "New" ตรง ๆ
+  // ไม่งั้นวันที่นิยาม "แก้ไขได้" ถูกขยายที่เดียว อีกที่จะหลุดตามไม่ทัน
   const result = await col.updateOne(
-    { ownerUserId, applicationId, status: "New" },
+    { ownerUserId, applicationId, status: { $in: EDITABLE_STATUSES } },
     { $push: { documents: ref }, $set: { updatedAt: now } },
   );
   if (result.matchedCount === 0) return false;
@@ -724,7 +777,7 @@ export async function removeDocumentFromApplication(
 ): Promise<string | undefined> {
   const col = await applications();
   const doc = await col.findOne(
-    { ownerUserId, applicationId, status: "New" },
+    { ownerUserId, applicationId, status: { $in: EDITABLE_STATUSES } },
     { projection: { documents: 1 } },
   );
   const target = doc?.documents?.find((d) => d.id === documentId);
@@ -732,7 +785,7 @@ export async function removeDocumentFromApplication(
 
   const now = new Date();
   await col.updateOne(
-    { ownerUserId, applicationId, status: "New" },
+    { ownerUserId, applicationId, status: { $in: EDITABLE_STATUSES } },
     { $pull: { documents: { id: documentId } }, $set: { updatedAt: now } },
   );
   await writeActivity({

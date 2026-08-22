@@ -28,7 +28,8 @@ export function DocumentsStep({
 }) {
   const [documents, setDocuments] = useState<PublicDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyCategory, setBusyCategory] = useState<string>();
+  // เซ็ตแทนสตริงเดียว — อัปโหลดสองหมวดพร้อมกันต้องล็อกอิสระจากกัน
+  const [busyCategories, setBusyCategories] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string>();
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -63,7 +64,7 @@ export function DocumentsStep({
 
   const upload = async (categoryId: string, file: File) => {
     setError(undefined);
-    setBusyCategory(categoryId);
+    setBusyCategories((prev) => new Set(prev).add(categoryId));
 
     const body = new FormData();
     body.set("category", categoryId);
@@ -76,11 +77,19 @@ export function DocumentsStep({
     if (!response.ok || !payload.document) {
       setError(payload.message ?? "อัปโหลดไม่สำเร็จ กรุณาลองอีกครั้ง");
     } else {
-      const next = [...documents, payload.document];
-      setDocuments(next);
-      publish(next);
+      // อัปเดตแบบ functional กันกรณีอัปโหลดสองหมวดพร้อมกัน — ค่า documents ที่ปิดคลุมไว้ตอนเรียก
+      // ฟังก์ชันนี้อาจเก่ากว่าที่อีกคำขอเพิ่งเขียนไปแล้ว
+      setDocuments((prev) => {
+        const next = [...prev, payload.document as PublicDocument];
+        publish(next);
+        return next;
+      });
     }
-    setBusyCategory(undefined);
+    setBusyCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(categoryId);
+      return next;
+    });
   };
 
   const remove = async (id: string) => {
@@ -94,9 +103,11 @@ export function DocumentsStep({
       setError("ลบไฟล์ไม่สำเร็จ กรุณาลองอีกครั้ง");
       return;
     }
-    const next = documents.filter((d) => d.id !== id);
-    setDocuments(next);
-    publish(next);
+    setDocuments((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      publish(next);
+      return next;
+    });
   };
 
   return (
@@ -195,12 +206,12 @@ export function DocumentsStep({
             />
             <button
               type="button"
-              disabled={loading || full || busyCategory === category.id}
+              disabled={loading || full || busyCategories.has(category.id)}
               onClick={() => inputRefs.current[category.id]?.click()}
               className="mt-4 inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-6 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment disabled:opacity-60"
             >
               <Plus aria-hidden className="size-4" />
-              {busyCategory === category.id
+              {busyCategories.has(category.id)
                 ? "กำลังอัปโหลด…"
                 : full
                   ? `ครบ ${category.maxFiles} ไฟล์แล้ว`

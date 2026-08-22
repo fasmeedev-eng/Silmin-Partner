@@ -40,10 +40,14 @@ export default async function AdminQueuePage({
   const showAll = params.bucket === "all";
   const bucket = bucketById(params.bucket) ?? WORK_BUCKETS[0];
 
+  const documentsParam = params.documents;
+  const documentsFilter: "complete" | "incomplete" | undefined =
+    documentsParam === "complete" || documentsParam === "incomplete" ? documentsParam : undefined;
+
   const filters = {
     statuses: showAll ? undefined : [...bucket.statuses],
     province: params.province || undefined,
-    documents: params.documents as "complete" | "incomplete" | undefined,
+    documents: documentsFilter,
     q: params.q || undefined,
     sort: params.sort === "newest" ? ("newest" as const) : ("oldest" as const),
     page: Number(params.page) > 0 ? Number(params.page) : 1,

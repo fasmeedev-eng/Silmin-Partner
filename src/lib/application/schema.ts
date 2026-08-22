@@ -10,8 +10,20 @@ import {
   PRICE_RANGES,
   PRODUCTS,
   SHOP_TYPES,
+  type Option,
   type StepId,
 } from "./options";
+
+/** ดึงค่า value ล้วนจากลิสต์ตัวเลือกเป็น tuple ให้ z.enum ใช้ได้
+ *  ป้องกันไม่ให้ request ที่ยิงตรงมาเก็บโค้ดตัวเลือกที่ฟอร์มไม่มีทางสร้างได้ */
+function valuesOf(options: readonly Option[]): [string, ...string[]] {
+  return options.map((o) => o.value) as [string, ...string[]];
+}
+
+/** ช่องที่ยังไม่บังคับให้เลือก — รับค่าว่างได้ แต่ถ้าเลือกแล้วต้องเป็นค่าที่มีจริงเท่านั้น */
+function optionalOption(options: readonly Option[]) {
+  return z.union([z.literal(""), z.enum(valuesOf(options))]);
+}
 
 
 /** ฟอร์มเก็บทุกช่องเป็นสตริง/อาร์เรย์เสมอ ช่องที่ยังไม่กรอกคือค่าว่าง ไม่ใช่ undefined
@@ -147,9 +159,9 @@ export const stepSchemas = {
     shop: z
       .object({
         name: z.string().trim().min(1, "กรอกชื่อร้านค้า"),
-        type: z.string(),
+        type: optionalOption(SHOP_TYPES),
         typeOther: z.string(),
-        branchCount: z.string(),
+        branchCount: optionalOption(BRANCH_COUNTS),
         address: z.object({
           line1: z.string().trim().min(1, "กรอกเลขที่"),
           road: z.string(),
@@ -174,7 +186,7 @@ export const stepSchemas = {
     contact: z
       .object({
         fullName: z.string().trim().min(1, "กรอกชื่อและนามสกุล"),
-        position: z.string(),
+        position: optionalOption(CONTACT_POSITIONS),
         positionOther: z.string(),
         phone: thaiPhone,
         lineId: z.string(),
@@ -189,9 +201,9 @@ export const stepSchemas = {
   business: z.object({
     business: z
       .object({
-        products: z.array(z.string()).min(1, "เลือกอย่างน้อย 1 รายการ"),
+        products: z.array(z.enum(valuesOf(PRODUCTS))).min(1, "เลือกอย่างน้อย 1 รายการ"),
         productOther: z.string(),
-        brands: z.array(z.string()),
+        brands: z.array(z.enum(valuesOf(BRANDS))),
         brandOther: z.string(),
       })
       .refine((b) => !b.products.includes("other") || b.productOther.trim().length > 0, {
@@ -207,8 +219,8 @@ export const stepSchemas = {
   sales: z.object({
     sales: z
       .object({
-        priceRange: z.string(),
-        installmentStatus: z.string(),
+        priceRange: optionalOption(PRICE_RANGES),
+        installmentStatus: optionalOption(INSTALLMENT_STATUS),
         installmentProviders: z.string(),
       })
       .refine(
@@ -223,10 +235,10 @@ export const stepSchemas = {
   interests: z.object({
     interests: z
       .object({
-        reasons: z.array(z.string()),
+        reasons: z.array(z.enum(valuesOf(INTERESTS))),
         reasonOther: z.string(),
-        callbackChannel: z.string().trim().min(1, "เลือกช่องทางที่สะดวกให้ติดต่อกลับ"),
-        callbackSlot: z.string().trim().min(1, "เลือกช่วงเวลาที่สะดวก"),
+        callbackChannel: z.enum(valuesOf(CALLBACK_CHANNELS), "เลือกช่องทางที่สะดวกให้ติดต่อกลับ"),
+        callbackSlot: z.enum(valuesOf(CALLBACK_SLOTS), "เลือกช่วงเวลาที่สะดวก"),
       })
       .refine((i) => !i.reasons.includes("other") || i.reasonOther.trim().length > 0, {
         message: "ระบุความสนใจอื่น ๆ",

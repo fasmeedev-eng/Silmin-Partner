@@ -124,8 +124,10 @@ export function trackIndex(status: ApplicationStatus): number {
  * เหตุผลคือเมื่อเจ้าหน้าที่เริ่มตรวจสอบแล้ว สิ่งที่กำลังตรวจต้องหยุดนิ่ง
  * ถ้าข้อมูลเปลี่ยนระหว่างตรวจ สิ่งที่อนุมัติกับสิ่งที่อยู่ในระบบจะไม่ตรงกัน
  */
+export const EDITABLE_STATUSES: ApplicationStatus[] = ["New"];
+
 export function isEditable(status: ApplicationStatus): boolean {
-  return status === "New";
+  return EDITABLE_STATUSES.includes(status);
 }
 
 /** ข้อความอธิบายว่าทำไมแก้ไม่ได้ ผู้ใช้ต้องรู้ว่าต้องทำอย่างไรแทน ไม่ใช่แค่เจอปุ่มหาย */

@@ -22,7 +22,9 @@ export default auth((req) => {
 
   if (isProtected && !req.auth) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    // ต้องพก search string ไปด้วย ไม่ใช่แค่ pathname — หน้าอย่าง /apply/success?id=…
+    // หรือ /me/SG-…?saved=1 ใช้ query จริง ๆ เพื่อกลับมาที่จุดเดิมพอดีหลังล็อกอิน
+    loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 });

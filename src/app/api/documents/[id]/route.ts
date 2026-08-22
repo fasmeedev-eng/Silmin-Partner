@@ -63,6 +63,8 @@ export async function GET(
       // inline เพื่อให้ดูรูปในหน้าเว็บได้ ส่วน filename ใช้ชื่อเดิมของผู้ใช้เวลาบันทึกลงเครื่อง
       "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(document.fileName)}`,
       "Cache-Control": "private, max-age=300",
+      // อัปโหลดตรวจแค่ MIME ที่ประกาศมา ไม่ได้ตรวจเนื้อไฟล์จริง กัน browser sniff เนื้อหาเป็นชนิดอื่น
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

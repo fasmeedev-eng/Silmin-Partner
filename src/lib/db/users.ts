@@ -53,16 +53,21 @@ export async function upsertUserOnSignIn(input: {
   const users = await usersCollection();
   const now = new Date();
 
+  // สร้าง $set แบบมีเงื่อนไข — ถ้า Google ไม่ส่ง name/image มาในรอบนี้ (เช่น scope ไม่ครบ)
+  // ต้องไม่เขียนทับค่าที่เคยมีให้กลายเป็น null การเขียน key ที่ค่าเป็น undefined ลง Mongo
+  // จะถูกเก็บเป็น null จริง ๆ ไม่ใช่แค่ถูกข้าม
+  const set: { email: string; updatedAt: Date; lastLoginAt: Date; name?: string; image?: string } = {
+    email: input.email,
+    updatedAt: now,
+    lastLoginAt: now,
+  };
+  if (input.name !== undefined) set.name = input.name;
+  if (input.image !== undefined) set.image = input.image;
+
   const result = await users.findOneAndUpdate(
     { googleId: input.googleId },
     {
-      $set: {
-        email: input.email,
-        name: input.name,
-        image: input.image,
-        updatedAt: now,
-        lastLoginAt: now,
-      },
+      $set: set,
       $setOnInsert: {
         googleId: input.googleId,
         role: "customer" as Role,

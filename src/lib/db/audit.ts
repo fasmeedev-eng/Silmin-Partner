@@ -16,10 +16,19 @@ export interface AdminAuditEntry {
   at: Date;
 }
 
+let adminAuditIndexesReady: Promise<void> | undefined;
+async function ensureAdminAuditIndexes(): Promise<void> {
+  adminAuditIndexesReady ??= (async () => {
+    const db = await getDb();
+    await db.collection<AdminAuditEntry>("adminAudit").createIndex({ at: -1 });
+  })();
+  await adminAuditIndexesReady;
+}
+
 export async function writeAdminAudit(entry: Omit<AdminAuditEntry, "at">): Promise<void> {
+  await ensureAdminAuditIndexes();
   const db = await getDb();
   const col = db.collection<AdminAuditEntry>("adminAudit");
-  await col.createIndex({ at: -1 });
   await col.insertOne({ ...entry, at: new Date() });
 }
 
