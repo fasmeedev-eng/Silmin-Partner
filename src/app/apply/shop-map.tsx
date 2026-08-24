@@ -239,14 +239,14 @@ export function ShopMap({
 
   const tabClass = (active: boolean) =>
     `flex min-h-[40px] items-center px-3 text-fine font-semibold transition-colors ${
-      active ? "bg-accent text-on-accent" : "bg-canvas text-ink-80 hover:bg-pearl"
+      active ? "bg-brand text-on-brand" : "bg-canvas text-ink-80 hover:bg-pearl"
     }`;
 
   return (
     <div className="relative">
       <div
         ref={containerRef}
-        className="h-80 w-full overflow-hidden rounded-lg ring-1 ring-hairline ring-inset sm:h-[26rem]"
+        className="h-80 w-full overflow-hidden rounded-card ring-1 ring-hairline ring-inset sm:h-[26rem]"
         role="application"
         aria-label="แผนที่เลือกตำแหน่งร้าน แตะบนแผนที่หรือลากหมุดเพื่อปักตำแหน่งเอง"
       />

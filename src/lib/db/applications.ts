@@ -404,6 +404,17 @@ export async function listOwnApplications(ownerUserId: string) {
     .toArray();
 }
 
+/** ร้านนี้มีใบสมัคร (สาขาไหนก็ได้) ที่ถึงสถานะ ActivePartner แล้วหรือยัง — ใช้เปิดฟีเจอร์ที่จำกัด
+ *  เฉพาะพาร์ทเนอร์จริง เช่นเครื่องคำนวณผ่อนใน /partner/calculator */
+export async function hasActivePartnerApplication(ownerUserId: string): Promise<boolean> {
+  const col = await applications();
+  const found = await col.findOne(
+    { ownerUserId, status: "ActivePartner" },
+    { projection: { _id: 1 } },
+  );
+  return found !== null;
+}
+
 /* ── คิวงานหลังบ้าน ───────────────────────────────────────────
    เจ้าหน้าที่ทุกคนเห็นทุกใบ (ไม่มีการมอบหมายผู้ดูแล) ความต่างของบทบาท
    อยู่ที่ "ทำอะไรได้" ไม่ใช่ "เห็นอะไร" — ดู guardRole และตารางสิทธิ์ */

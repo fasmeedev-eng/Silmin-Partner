@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Briefcase,
   Check,
+  CircleAlert,
   CircleCheck,
   FileText,
   MessageCircle,
@@ -15,11 +16,13 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react";
+import { ctaClass } from "@/components/ui/cta-button";
 import { STEPS, type StepId } from "@/lib/application/options";
 import { REQUIRED_CATEGORIES } from "@/lib/application/categories";
 import { validateStep, type ApplicationData } from "@/lib/application/schema";
 import { saveDraftAction, submitAction, updateApplicationAction } from "./actions";
 import { DocumentsStep } from "./documents-step";
+import { FormStepper } from "./form-stepper";
 import {
   BusinessStep,
   ContactStep,
@@ -191,12 +194,14 @@ export function ApplyForm({
   const stepProps = { data, errors, update };
 
   return (
-    <div className="mx-auto w-full max-w-[1040px] px-6 pb-24 pt-8 sm:px-8 sm:pb-20">
-      {/* แถบความคืบหน้า — บอกเสมอว่าอยู่ขั้นไหนและเหลืออีกกี่ขั้น */}
+    <div className="mx-auto w-full max-w-[860px] px-6 pb-28 pt-10 lg:px-8 lg:pb-20">
+      {/* แถบขั้นตอน — บอกทั้งว่าอยู่ขั้นไหน ผ่านอะไรมาแล้ว และเหลืออะไรอีก */}
       <div>
         <div className="flex items-baseline justify-between gap-4">
-          <p className="text-caption text-ink-48">
-            ขั้นที่ {stepIndex + 1} จาก {STEPS.length}
+          <p className="text-caption font-medium text-ink-48">
+            ขั้นที่{" "}
+            <span className="font-semibold tabular-nums text-ink">{stepIndex + 1}</span> จาก{" "}
+            <span className="tabular-nums">{STEPS.length}</span>
           </p>
           <p className="text-caption text-ink-48" aria-live="polite">
             {editing ? "กำลังแก้ไขใบสมัครที่ส่งแล้ว" : null}
@@ -204,39 +209,32 @@ export function ApplyForm({
             {!editing && saveState === "saved" ? "บันทึกร่างแล้ว" : null}
           </p>
         </div>
-        <div
-          className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-divider-soft"
-          role="progressbar"
-          aria-valuenow={stepIndex + 1}
-          aria-valuemin={1}
-          aria-valuemax={STEPS.length}
-          aria-label="ความคืบหน้าการกรอกใบสมัคร"
-        >
-          <div
-            className="h-full rounded-full bg-accent-ink transition-[width] duration-300"
-            style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }}
-          />
+
+        <div className="mt-5">
+          <FormStepper currentIndex={stepIndex} onStepSelect={goToStep} />
         </div>
       </div>
 
       {/* ไอคอนต่อขั้น ช่วยให้กวาดสายตาแล้วจับได้ทันทีว่ากำลังอยู่ขั้นไหนในฟอร์ม 7 ขั้น */}
-      <div className="mt-8 flex items-center gap-3">
+      <div className="mt-9 flex items-center gap-4">
         <span
           aria-hidden
-          className="flex size-11 shrink-0 items-center justify-center rounded-md bg-pearl text-accent-ink"
+          className="flex size-12 shrink-0 items-center justify-center rounded-input bg-brand text-on-brand"
         >
-          <StepIcon className="size-5" strokeWidth={2} />
+          <StepIcon className="size-[22px]" strokeWidth={2} />
         </span>
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className="text-h3 focus:outline-none sm:text-h2"
+          className="text-h3 font-bold leading-[1.32] focus:outline-none"
         >
           {step.title}
         </h1>
       </div>
 
-      <div className="mt-6">
+      {/* เนื้อหาแต่ละขั้นอยู่บนการ์ดขาว ลอยอยู่บนพื้นอุ่นของหน้า — ขอบเขตของ "สิ่งที่ต้องกรอกตอนนี้"
+          จึงชัดด้วยตัวมันเอง ไม่ต้องมีเส้นคั่นหรือหัวข้อย่อยมาบอก */}
+      <div className="mt-7 rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-8">
         {step.id === "shop" ? <ShopStep {...stepProps} /> : null}
         {step.id === "contact" ? <ContactStep {...stepProps} /> : null}
         {step.id === "business" ? <BusinessStep {...stepProps} /> : null}
@@ -255,38 +253,35 @@ export function ApplyForm({
       </div>
 
       {submitError ? (
-        <p role="alert" className="mt-6 rounded-md bg-danger/10 p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset">
+        <p
+          role="alert"
+          className="mt-6 flex items-start gap-2.5 rounded-input bg-danger/[0.06] p-4 text-caption text-danger-ink ring-1 ring-inset ring-danger/25"
+        >
+          <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={2.25} />
           {submitError}
         </p>
       ) : null}
 
-      <div className="mt-10 flex items-center justify-between gap-4">
+      <div className="mt-9 flex items-center justify-between gap-4">
         <button
           type="button"
           onClick={goBack}
           disabled={stepIndex === 0}
-          className="inline-flex min-h-[52px] items-center gap-2 rounded-full px-5 text-body text-ink-80 transition-colors hover:text-ink disabled:invisible"
+          className="inline-flex min-h-[56px] items-center gap-2 rounded-btn px-5 text-body font-medium text-ink-80 transition-colors hover:bg-canvas hover:text-ink disabled:invisible"
         >
-          <ArrowLeft aria-hidden className="size-4" />
+          <ArrowLeft aria-hidden className="size-[18px]" />
           ย้อนกลับ
         </button>
 
         {stepIndex < LAST_STEP ? (
-          <button
-            type="button"
-            onClick={goNext}
-            className="inline-flex min-h-[52px] items-center gap-2 rounded-full bg-accent px-7 text-body text-on-accent transition-colors hover:bg-accent-hover"
-          >
+          <button type="button" onClick={goNext} className={ctaClass("brand")}>
             ถัดไป
-            <ArrowRight aria-hidden className="size-4" />
+            <ArrowRight aria-hidden className="size-[18px]" />
           </button>
         ) : (
-          <button
-            type="button"
-            onClick={openConfirm}
-            className="inline-flex min-h-[52px] items-center gap-2 rounded-full bg-accent px-7 text-body font-semibold text-on-accent transition-colors hover:bg-accent-hover"
-          >
+          <button type="button" onClick={openConfirm} className={ctaClass("brand")}>
             {editing ? "บันทึกการแก้ไข" : "ส่งใบสมัคร Partner"}
+            <Check aria-hidden className="size-[18px]" />
           </button>
         )}
       </div>
@@ -294,13 +289,13 @@ export function ApplyForm({
       <dialog
         ref={confirmRef}
         aria-labelledby="confirm-title"
-        className="login-dialog m-auto w-[min(92vw,26rem)] rounded-lg bg-canvas p-0 text-ink backdrop:bg-black/50"
+        className="login-dialog m-auto w-[min(92vw,28rem)] rounded-card bg-canvas p-0 text-ink backdrop:bg-black/60"
       >
-        <div className="p-7">
-          <h2 id="confirm-title" className="text-h3">
+        <div className="p-8">
+          <h2 id="confirm-title" className="text-h3 font-bold">
             {editing ? "ยืนยันการแก้ไข" : "ตรวจสอบข้อมูล"}
           </h2>
-          <p className="mt-4 text-caption text-ink-80">
+          <p className="mt-4 text-caption leading-[1.7] text-ink-80">
             {editing
               ? "ข้อมูลใหม่จะแทนที่ข้อมูลเดิมในใบสมัครนี้ และบันทึกไว้ในประวัติการแก้ไข"
               : "กรุณาตรวจสอบข้อมูลก่อนส่งใบสมัคร เมื่อกด “ยืนยันส่งใบสมัคร” ข้อมูลจะถูกส่งให้บริษัทตรวจสอบ"}
@@ -311,11 +306,11 @@ export function ApplyForm({
               : "หลังส่งแล้วยังแก้ไขได้ ตราบใดที่สถานะยังเป็น “รอดำเนินการ”"}
           </p>
 
-          <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => confirmRef.current?.close()}
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full px-6 text-body text-ink-80 ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment"
+              className="inline-flex min-h-[56px] items-center justify-center rounded-btn px-6 text-body font-medium text-ink-80 ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl"
             >
               ยกเลิก
             </button>
@@ -323,9 +318,9 @@ export function ApplyForm({
               type="button"
               onClick={doSubmit}
               disabled={isSubmitting}
-              className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-accent px-6 text-body font-semibold text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-60"
+              className={ctaClass("brand", "disabled:pointer-events-none disabled:opacity-60")}
             >
-              <Check aria-hidden className="size-4" />
+              <Check aria-hidden className="size-[18px]" />
               {isSubmitting
                 ? "กำลังบันทึก…"
                 : editing

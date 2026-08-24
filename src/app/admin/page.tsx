@@ -184,7 +184,7 @@ export default async function AdminQueuePage({
             type="search"
             defaultValue={filters.q ?? ""}
             placeholder="พิมพ์ชื่อร้าน เบอร์โทร หรือเลขที่ใบสมัคร"
-            className="min-h-[56px] w-full rounded-md bg-canvas pl-14 pr-4 text-body text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus:ring-2 focus:ring-accent-ink"
+            className="min-h-[56px] w-full rounded-md bg-canvas pl-14 pr-4 text-body text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
           />
         </div>
 
@@ -204,7 +204,7 @@ export default async function AdminQueuePage({
                 id="province"
                 name="province"
                 defaultValue={filters.province ?? ""}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus:ring-2 focus:ring-accent-ink"
+                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
               >
                 <option value="">ทุกจังหวัด</option>
                 {provinces.map((p) => (
@@ -223,7 +223,7 @@ export default async function AdminQueuePage({
                 id="documents"
                 name="documents"
                 defaultValue={filters.documents ?? ""}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus:ring-2 focus:ring-accent-ink"
+                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
               >
                 <option value="">ทั้งหมด</option>
                 <option value="complete">เอกสารครบ</option>
@@ -239,7 +239,7 @@ export default async function AdminQueuePage({
                 id="sort"
                 name="sort"
                 defaultValue={filters.sort}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus:ring-2 focus:ring-accent-ink"
+                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
               >
                 <option value="oldest">รอนานที่สุดก่อน</option>
                 <option value="newest">เข้ามาล่าสุดก่อน</option>

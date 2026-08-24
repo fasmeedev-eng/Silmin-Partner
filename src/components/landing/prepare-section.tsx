@@ -1,7 +1,7 @@
 import { Camera, IdCard, Phone } from "lucide-react";
-import { Eyebrow, Section } from "@/components/ui/section";
+import { Section, SectionHeading } from "@/components/ui/section";
 
-const items = [
+const ITEMS = [
   {
     icon: Camera,
     title: "รูปหน้าร้าน",
@@ -19,35 +19,35 @@ const items = [
   },
 ];
 
+/**
+ * ชิปไอคอนเป็นเหลืองทั้งสามใบ ไม่สลับแดง — ส่วนนี้คือ "สิ่งที่ต้องเตรียม" ไม่ใช่สิ่งที่ต้องกด
+ * แดงถูกกันไว้ให้ปุ่มกับสถานะ active เท่านั้น ถ้าโปรยแดงมาที่นี่ด้วย ปุ่ม CTA จะเหลือเสียงเบาลง
+ */
 export function PrepareSection() {
   return (
-    <Section tone="parchment">
-      <Eyebrow>ก่อนเริ่ม</Eyebrow>
-      <h2 className="mt-4 max-w-[22ch] text-h3 sm:text-h2">
-        เตรียมไว้ 3 อย่าง แล้วกรอกจบในรอบเดียว
-      </h2>
+    <Section tone="canvas">
+      <SectionHeading
+        title="เตรียมไว้ 3 อย่าง แล้วกรอกจบในรอบเดียว"
+        lead="ไม่ต้องเตรียมเอกสารบริษัทหรือเลขบัญชีธนาคารในขั้นตอนนี้ แค่สามอย่างนี้ก็กรอกจบได้"
+      />
 
-      <ul className="mt-10 grid gap-4 sm:grid-cols-3">
-        {items.map(({ icon: Icon, title, body }) => (
+      <ul className="mt-14 grid gap-5 sm:grid-cols-3">
+        {ITEMS.map(({ icon: Icon, title, body }) => (
           <li
             key={title}
-            className="rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset"
+            className="rounded-card bg-canvas p-7 shadow-soft ring-1 ring-hairline/70"
           >
-            {/* ชิปเหลืองเต็มวง ไอคอนสีเข้ม — เหลืองต้องเป็นพื้นเสมอเมื่ออยู่บนพื้นสว่าง */}
-            <span className="inline-flex size-11 items-center justify-center rounded-full bg-accent">
-              <Icon
-                aria-hidden
-                className="size-5 text-on-accent"
-                strokeWidth={1.75}
-              />
+            {/* เหลืองเป็นพื้นเสมอเมื่ออยู่บนพื้นสว่าง ไอคอนจึงต้องเป็นสีเข้ม ไม่ใช่ขาว */}
+            <span className="inline-flex size-12 items-center justify-center rounded-full bg-gold">
+              <Icon aria-hidden className="size-[22px] text-[#0a0a0a]" strokeWidth={1.9} />
             </span>
-            <h3 className="mt-4 text-body font-semibold">{title}</h3>
-            <p className="mt-2 text-caption text-ink-80">{body}</p>
+            <h3 className="mt-5 text-body font-semibold">{title}</h3>
+            <p className="mt-2.5 text-caption leading-[1.7] text-ink-80">{body}</p>
           </li>
         ))}
       </ul>
 
-      <p className="mt-6 max-w-[62ch] text-caption text-ink-48">
+      <p className="mt-8 max-w-[68ch] text-caption text-ink-48">
         รองรับไฟล์ JPG PNG และ PDF ขนาดไม่เกิน 10 MB ต่อไฟล์ ·
         กรอกไม่จบระบบบันทึกร่างให้อัตโนมัติ กลับมากรอกต่อจากเครื่องไหนก็ได้
       </p>

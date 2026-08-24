@@ -24,7 +24,9 @@ import {
   englishNamesOf,
   latLngOf,
   matchAdminNames,
+  matchDistrictOnly,
   nearestSubDistrict,
+  nearestSubDistrictIn,
   subDistrictsOf,
   zipCodeOf,
 } from "@/lib/application/thai-address";
@@ -57,8 +59,53 @@ function SectionIntro({ children }: { children: React.ReactNode }) {
 export function ShopStep({ data, errors, update }: StepProps) {
   const [geoStatus, setGeoStatus] = useState<"idle" | "loading" | "error">("idle");
   // สถานะปักหมุดอัตโนมัติจากที่อยู่ — แยกจาก geoStatus เพราะคนละที่มาของพิกัด (ที่อยู่ vs ตำแหน่งเครื่อง)
-  const [addressGeoStatus, setAddressGeoStatus] = useState<"idle" | "not_found">("idle");
+  // สองความล้มเหลวคนละเรื่องกัน ต้องบอกคนละอย่าง: ปักหมุดจากที่อยู่ไม่ได้ vs หาที่อยู่จากหมุดไม่ได้
+  // ถ้าใช้ข้อความเดียวกัน คนที่เพิ่งปักหมุดเองจะโดนบอกให้ "ปักหมุดเอง" ซ้ำอีก ซึ่งไม่ช่วยอะไร
+  const [addressGeoStatus, setAddressGeoStatus] = useState<
+    "idle" | "loading" | "pin_failed" | "lookup_failed"
+  >("idle");
+  // บ้านเลขที่ที่กรอกให้เป็นของหลังที่ใกล้ที่สุด ไม่ใช่ของจุดที่ยืนอยู่เป๊ะ ๆ จึงต้องเตือนให้ตรวจทาน
+  const [houseNumberApprox, setHouseNumberApprox] = useState(false);
+  // เลขที่ใกล้เคียงที่ไกลเกินกว่าจะกรอกให้เอง — เสนอเป็นปุ่มให้กดเลือกแทนการเดาแทนผู้ใช้
+  const [houseNumberChoices, setHouseNumberChoices] = useState<
+    { houseNumber: string; street: string; distanceM: number }[]
+  >([]);
+  // หาเลขที่ไม่เจอเลย ต้องบอกตรง ๆ ไม่ใช่เงียบไว้จนผู้ใช้คิดว่าปุ่มเสีย
+  const [houseNumberMissing, setHouseNumberMissing] = useState(false);
   const shop = data.shop;
+
+  // ป็อปอัปแสดง % ความคืบหน้าตอนกำลังหาที่อยู่ — ทั้งจากปักหมุดเองและกดปุ่มใช้ตำแหน่งเครื่อง
+  // % เป็นของจำลองล้วน ๆ (ของจริงไม่มีให้วัด เพราะเวลารอขึ้นกับ Nominatim/Overpass ที่คุมไม่ได้)
+  // ไล่เร็วตอนแรกแล้วช้าลงเรื่อย ๆ เข้าใกล้ 92% แต่ไม่มีวันถึงเอง — ให้ความรู้สึกว่าเร็ว ไม่ใช่ค้าง
+  // พอโหลดเสร็จจริงค่อยกระโดดไป 100% ค้างไว้แวบหนึ่งให้เห็นว่า "เสร็จแล้ว" ก่อนปิดป็อปอัป
+  const isLocating = geoStatus === "loading" || addressGeoStatus === "loading";
+  const [loadingPopupVisible, setLoadingPopupVisible] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hidePopupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isLocating) {
+      setLoadingPopupVisible(true);
+      setLoadingProgress(0);
+      progressTimerRef.current = setInterval(() => {
+        setLoadingProgress((p) => p + (92 - p) * 0.15);
+      }, 120);
+    } else {
+      setLoadingProgress((p) => (p > 0 ? 100 : p));
+      hidePopupTimerRef.current = setTimeout(() => setLoadingPopupVisible(false), 500);
+    }
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      if (hidePopupTimerRef.current) {
+        clearTimeout(hidePopupTimerRef.current);
+        hidePopupTimerRef.current = null;
+      }
+    };
+  }, [isLocating]);
   const setAddress = (patch: Partial<ApplicationData["shop"]["address"]>) =>
     update("shop", { address: { ...shop.address, ...patch } });
 
@@ -84,7 +131,7 @@ export function ShopStep({ data, errors, update }: StepProps) {
       update("shop", { lat: found.lat.toFixed(6), lng: found.lng.toFixed(6) });
       setAddressGeoStatus("idle");
     } else {
-      setAddressGeoStatus("not_found");
+      setAddressGeoStatus("pin_failed");
     }
   }, [shop.address, update]);
 
@@ -134,61 +181,113 @@ export function ShopStep({ data, errors, update }: StepProps) {
     return () => clearTimeout(timer);
   }, [shop.address, update]);
 
+  // กันผลลัพธ์ของการปักหมุดครั้งก่อนมาทับครั้งล่าสุด เมื่อผู้ใช้แตะแผนที่รัว ๆ
+  // (คำขอที่ยิงก่อนอาจตอบกลับทีหลัง) — เก็บเฉพาะผลของโทเคนล่าสุดเท่านั้น
+  const lookupTokenRef = useRef(0);
+
+  /**
+   * เติมที่อยู่ทั้งชุดจากพิกัดหนึ่งจุด — ใช้ร่วมกันทั้งตอนกด "ใช้ตำแหน่งเครื่องฉัน" และตอนปักหมุดเอง
+   * ทั้งสองทางต้องได้ผลเหมือนกัน ไม่งั้นผู้ใช้จะงงว่าทำไมปักหมุดแล้วที่อยู่ไม่ขึ้นแต่กดปุ่มแล้วขึ้น
+   */
+  const fillAddressFromPoint = async (point: { lat: number; lng: number }) => {
+    const token = ++lookupTokenRef.current;
+    const lat = point.lat.toFixed(6);
+    const lng = point.lng.toFixed(6);
+
+    setAddressGeoStatus("loading");
+    setHouseNumberApprox(false);
+    setHouseNumberChoices([]);
+    setHouseNumberMissing(false);
+
+    // ทางหลัก: ย้อนกลับพิกัดผ่าน Nominatim แล้วจับคู่ชื่อจังหวัด/อำเภอ/ตำบลกับฐานข้อมูลแอป
+    // — ใช้ได้ทั้งกรุงเทพฯ และต่างจังหวัด (ต่างจาก nearestSubDistrict ที่กรุงเทพฯ ไม่มีพิกัด
+    // ตำบลเลยสักตำบลเดียวในฐานข้อมูล) เลขที่บ้าน/ถนนก็มาจากคำตอบเดียวกันนี้
+    let houseNumber = "";
+    let road = "";
+    let houseNumberNearby = false;
+    let candidates: { houseNumber: string; street: string; distanceM: number }[] = [];
+    let matched: ReturnType<typeof matchAdminNames> | undefined;
+    let adminFields: string[] = [];
+    try {
+      const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+      const result = (await response.json()) as {
+        houseNumber: string;
+        road: string;
+        houseNumberNearby?: boolean;
+        houseNumberCandidates?: { houseNumber: string; street: string; distanceM: number }[];
+        adminFields: string[];
+      };
+      houseNumber = result.houseNumber;
+      road = result.road;
+      houseNumberNearby = Boolean(result.houseNumberNearby);
+      candidates = result.houseNumberCandidates ?? [];
+      adminFields = result.adminFields;
+      matched = matchAdminNames(adminFields);
+    } catch {
+      // เงียบไว้ — ลองทางสำรองข้างล่างต่อ
+    }
+
+    if (token !== lookupTokenRef.current) return;
+
+    // บ้านเลขที่ที่เดาจากหลังข้างเคียงห้ามทับสิ่งที่ผู้ใช้พิมพ์เอง — ของผู้ใช้แม่นกว่าเสมอ
+    // ส่วนบ้านเลขที่ที่ตรงจุดจริง (ไม่ใช่หลังข้างเคียง) ทับได้ เพราะผู้ใช้เพิ่งขอให้ระบุตำแหน่งให้
+    const keepTypedHouseNumber = houseNumberNearby && shop.address.line1.trim() !== "";
+    if (keepTypedHouseNumber) houseNumber = "";
+
+    // ไล่ทางสำรองจากแม่นสุดไปหยาบสุด:
+    // 1) matched — Nominatim บอกครบทั้งจังหวัด/อำเภอ/ตำบล
+    // 2) รู้จังหวัด+อำเภอแต่ไม่รู้ตำบล (เจอบ่อยในเขตเทศบาล เช่น เมืองพัทยา ภูเก็ต)
+    //    เดาตำบลที่ใกล้ที่สุดภายในอำเภอนั้น — ล็อกขอบเขตไว้แล้วจึงไม่หลุดข้ามจังหวัด
+    // 3) ออฟไลน์ล้วน ๆ ค้นทั้งประเทศ จำกัด 3 กม.กันหลุดข้ามจังหวัด (ใช้ไม่ได้ในกรุงเทพฯ)
+    const partial = matched ? undefined : matchDistrictOnly(adminFields);
+    const found =
+      matched ??
+      (partial ? nearestSubDistrictIn(partial.province, partial.district, point) : undefined) ??
+      nearestSubDistrict(point);
+
+    const nextAddress = {
+      ...shop.address,
+      ...(found
+        ? {
+            province: found.province,
+            district: found.district,
+            subDistrict: found.subDistrict,
+            postalCode: found.zip,
+          }
+        : {}),
+      ...(houseNumber ? { line1: houseNumber } : {}),
+      ...(road ? { road } : {}),
+    };
+
+    // ปิดสองเอฟเฟกต์ที่จะย้ายหมุดหนีจากจุดที่เพิ่งได้มา ต้องตั้งค่า "ก่อน" เรียก update เสมอ
+    // 1) เอฟเฟกต์ปักหมุดตามตำบล จะลากหมุดไปจุดกึ่งกลางตำบลซึ่งหยาบกว่าจุดที่ผู้ใช้ปักเอง
+    if (found) {
+      lastPinnedKeyRef.current = `${found.province}|${found.district}|${found.subDistrict}`;
+    }
+    // 2) เอฟเฟกต์ปรับหมุดตามเลขที่/ถนน จะยิง /api/geocode แล้วย้ายหมุดไปตามผลค้นหาชื่อถนน
+    //    ซึ่งหยาบกว่าจุดจริงที่เพิ่งได้ — จุดนี้มาจาก GPS หรือนิ้วผู้ใช้ แม่นกว่าอยู่แล้ว
+    const streetQuery = [nextAddress.line1, nextAddress.road].filter(Boolean).join(" ");
+    if (nextAddress.province && nextAddress.district && nextAddress.subDistrict && streetQuery) {
+      lastRefinedRef.current = `${nextAddress.province}|${nextAddress.district}|${nextAddress.subDistrict}|${streetQuery}`;
+    }
+
+    update("shop", { lat, lng, address: nextAddress });
+
+    setHouseNumberApprox(Boolean(houseNumber) && houseNumberNearby);
+    // เสนอตัวเลือกเฉพาะตอนที่ยังไม่ได้เลขที่ — ถ้ากรอกให้แล้วการยัดตัวเลือกเพิ่มมีแต่ทำให้สับสน
+    setHouseNumberChoices(houseNumber ? [] : candidates);
+    setHouseNumberMissing(!houseNumber && candidates.length === 0);
+    setAddressGeoStatus(found ? "idle" : "lookup_failed");
+  };
+
   const shareLocation = () => {
     setGeoStatus("loading");
-    setAddressGeoStatus("idle");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
-        const lat = point.lat.toFixed(6);
-        const lng = point.lng.toFixed(6);
-
         void (async () => {
-          // ทางหลัก: ย้อนกลับพิกัดผ่าน Nominatim แล้วจับคู่ชื่อจังหวัด/อำเภอ/ตำบลกับฐานข้อมูลแอป
-          // — ใช้ได้ทั้งกรุงเทพฯ และต่างจังหวัด (ต่างจาก nearestSubDistrict ที่กรุงเทพฯ ไม่มีพิกัด
-          // ตำบลเลยสักตำบลเดียวในฐานข้อมูล) เลขที่บ้าน/ถนนก็มาจากคำตอบเดียวกันนี้
-          let houseNumber = "";
-          let road = "";
-          let matched: ReturnType<typeof matchAdminNames> | undefined;
-          try {
-            const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
-            const result = (await response.json()) as {
-              houseNumber: string;
-              road: string;
-              adminFields: string[];
-            };
-            houseNumber = result.houseNumber;
-            road = result.road;
-            matched = matchAdminNames(result.adminFields);
-          } catch {
-            // เงียบไว้ — ลองทางสำรองข้างล่างต่อ
-          }
-
-          // ทางสำรอง: ออฟไลน์ล้วน ๆ ถ้า Nominatim ใช้ไม่ได้หรือจับคู่ไม่เจอ (ใช้ไม่ได้ในกรุงเทพฯ)
-          const found = matched ?? nearestSubDistrict(point);
-
-          if (found) {
-            // กันไม่ให้ effect ปักหมุดอัตโนมัติจากที่อยู่ (ด้านบน) ทับพิกัด GPS ที่แม่นกว่า
-            // ด้วยจุดกึ่งกลางตำบลซึ่งหยาบกว่า — ต้องตั้งค่านี้ก่อนเรียก update เสมอ
-            lastPinnedKeyRef.current = `${found.province}|${found.district}|${found.subDistrict}`;
-          }
-
-          update("shop", {
-            lat,
-            lng,
-            address: {
-              ...shop.address,
-              ...(found
-                ? {
-                    province: found.province,
-                    district: found.district,
-                    subDistrict: found.subDistrict,
-                    postalCode: found.zip,
-                  }
-                : {}),
-              ...(houseNumber ? { line1: houseNumber } : {}),
-              ...(road ? { road } : {}),
-            },
+          await fillAddressFromPoint({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
           });
           setGeoStatus("idle");
         })();
@@ -254,10 +353,117 @@ export function ShopStep({ data, errors, update }: StepProps) {
         />
       </Field>
 
+      {/* หัวข้อเขียนเป็น <p> ไม่ใช่ <label htmlFor> เพราะข้างล่างเป็นแผนที่กับปุ่ม ไม่มี input เดี่ยว
+          ให้ label ชี้ไปหาได้ตรง ๆ — label ที่ for ไม่มี id จริงเป็นบั๊กที่ผู้ใช้แจ้งมาก่อนหน้านี้
+
+          วางไว้ก่อนที่อยู่ตามคำขอผู้ใช้ — ปักหมุด/กดใช้ตำแหน่งเครื่องก่อน แล้วให้ระบบกรอกที่อยู่ด้านล่างให้เอง
+          เร็วกว่าการนั่งเลือกจังหวัด/อำเภอ/ตำบลเองทีละขั้น แต่ยังกรอกที่อยู่เองก่อนแล้วปล่อยให้ระบบปักหมุดตามทีหลังได้เหมือนเดิม */}
+      <div>
+        <p className="block text-caption font-semibold text-ink">พิกัดร้าน</p>
+        <p className="mt-1 text-fine text-ink-48">
+          ไม่บังคับ — แตะบนแผนที่/ลากหมุดเพื่อปักเอง หรือกด &ldquo;ใช้ตำแหน่งเครื่องฉัน&rdquo;
+          แล้วระบบจะกรอกที่อยู่ด้านล่างให้อัตโนมัติ (ปักหมุดให้เองได้เช่นกันถ้ากรอกที่อยู่ด้านล่างก่อน)
+        </p>
+
+        <div className="mt-2 space-y-3">
+          <ShopMap
+            lat={shop.lat}
+            lng={shop.lng}
+            onPick={(lat, lng) => {
+              // ปักหมุดเองต้องได้ที่อยู่ครบเหมือนกดปุ่มใช้ตำแหน่งเครื่อง ไม่ใช่ได้แค่พิกัด
+              // อัปเดตพิกัดทันทีก่อน เพื่อให้หมุดอยู่ที่นิ้วผู้ใช้ระหว่างรอผลค้นที่อยู่
+              update("shop", { lat, lng });
+              void fillAddressFromPoint({ lat: Number(lat), lng: Number(lng) });
+            }}
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={shareLocation}
+              disabled={geoStatus === "loading"}
+              className="inline-flex min-h-[52px] items-center gap-2 rounded-btn bg-canvas px-6 text-body font-medium text-ink ring-1 ring-hairline ring-inset transition-all hover:-translate-y-0.5 hover:shadow-soft hover:ring-ink-48/40 disabled:pointer-events-none disabled:opacity-60 motion-reduce:hover:translate-y-0"
+            >
+              <MapPin aria-hidden className="size-[18px]" />
+              {geoStatus === "loading" ? "กำลังอ่านตำแหน่ง…" : "ใช้ตำแหน่งเครื่องฉัน"}
+            </button>
+            {shop.lat && shop.lng ? (
+              <span className="text-caption tabular-nums text-ink-80">
+                พิกัด {shop.lat}, {shop.lng}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-fine text-ink-48">
+            ทั้งการกดปุ่มและการแตะ/ลากหมุดบนแผนที่ ระบบจะกรอกจังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์
+            (และเลขที่/ถนนถ้าหาเจอ) ให้อัตโนมัติตามตำแหน่งนั้น — ตรวจทานอีกครั้งก่อนไปขั้นต่อไปเสมอ
+          </p>
+
+          {addressGeoStatus === "pin_failed" ? (
+            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              ไม่มีพิกัดของตำบลนี้ในระบบ กรุณาปักหมุดเอง — แตะตำแหน่งบนแผนที่หรือลากหมุดไปยังตำแหน่งร้านจริง
+            </p>
+          ) : null}
+          {addressGeoStatus === "lookup_failed" ? (
+            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              ระบุที่อยู่จากตำแหน่งที่ปักไม่ได้ หมุดยังอยู่ที่เดิม กรุณาเลือกจังหวัด/อำเภอ/ตำบลด้านล่างเอง
+            </p>
+          ) : null}
+          {geoStatus === "error" ? (
+            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+              อ่านตำแหน่งจากเครื่องไม่สำเร็จ อาจเพราะเบราว์เซอร์ไม่ได้รับอนุญาต ปักหมุดเองบนแผนที่ได้เลย
+            </p>
+          ) : null}
+          {/* บอกตรง ๆ ว่าเลขที่มาจากหลังข้างเคียง ไม่ใช่ของร้านแน่ ๆ — ถ้าไม่บอก ผู้ใช้จะเชื่อว่าถูกแล้วส่งเลย */}
+          {houseNumberApprox ? (
+            <p role="status" className="flex items-start gap-2 text-caption text-ink-80">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-ink" />
+              เลขที่ที่กรอกให้เป็นของอาคารที่ใกล้ที่สุด อาจไม่ใช่เลขที่ของร้านคุณ กรุณาตรวจสอบและแก้ไขให้ถูกต้อง
+            </p>
+          ) : null}
+
+          {/* ไกลเกินกว่าจะกรอกให้เอง แต่ยังพอเดาได้ว่าอยู่แถวไหน — ให้ผู้ใช้เป็นคนตัดสินใจแทนระบบ */}
+          {houseNumberChoices.length > 0 ? (
+            <div role="status" className="rounded-input bg-pearl p-4 ring-1 ring-hairline ring-inset">
+              <p className="text-caption text-ink-80">
+                ไม่พบเลขที่ตรงตำแหน่งนี้พอดี — เลขที่ใกล้เคียงจากแผนที่ กดเลือกได้ถ้าตรงกับร้านคุณ
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {houseNumberChoices.map((choice) => (
+                  <button
+                    key={`${choice.houseNumber}-${choice.distanceM}`}
+                    type="button"
+                    onClick={() => {
+                      setAddress({ line1: choice.houseNumber });
+                      setHouseNumberChoices([]);
+                      setHouseNumberApprox(true);
+                    }}
+                    className="inline-flex min-h-[44px] items-center gap-2 rounded-btn bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset transition-colors hover:ring-brand hover:ring-2"
+                  >
+                    <span className="font-semibold tabular-nums">{choice.houseNumber}</span>
+                    <span className="text-ink-48">ห่าง {choice.distanceM} ม.</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* ข้อมูลเลขที่บ้านใน OpenStreetMap ของไทยมีไม่ทั่วถึง หลายพื้นที่ไม่มีเลย ต้องบอกว่าไม่ใช่ปุ่มเสีย */}
+          {houseNumberMissing ? (
+            <p role="status" className="flex items-start gap-2 text-caption text-ink-80">
+              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-brand-ink" />
+              กรอกจังหวัด/อำเภอ/ตำบลให้แล้ว แต่บริเวณนี้ไม่มีข้อมูลเลขที่บ้านในแผนที่ กรุณากรอกเลขที่เอง
+            </p>
+          ) : null}
+        </div>
+      </div>
+
       <fieldset>
         <legend className="flex items-center gap-1.5 text-caption font-semibold text-ink">
           <MapPin aria-hidden className="size-4 text-ink-48" />
-          ที่อยู่ร้าน<span className="pl-1 text-accent-ink">*</span>
+          ที่อยู่ร้าน<span className="pl-1 text-brand-ink">*</span>
         </legend>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <Field id="addr-line1" label="เลขที่" required error={errors["shop.address.line1"]}>
@@ -348,66 +554,39 @@ export function ShopStep({ data, errors, update }: StepProps) {
               readOnly
               error={errors["shop.address.postalCode"]}
               inputMode="numeric"
-              className="cursor-not-allowed bg-parchment text-ink-80"
+              className="cursor-not-allowed bg-pearl text-ink-80"
             />
           </Field>
         </div>
       </fieldset>
 
-      {/* หัวข้อเขียนเป็น <p> ไม่ใช่ <label htmlFor> เพราะข้างล่างเป็นแผนที่กับปุ่ม ไม่มี input เดี่ยว
-          ให้ label ชี้ไปหาได้ตรง ๆ — label ที่ for ไม่มี id จริงเป็นบั๊กที่ผู้ใช้แจ้งมาก่อนหน้านี้ */}
-      <div>
-        <p className="block text-caption font-semibold text-ink">พิกัดร้าน</p>
-        <p className="mt-1 text-fine text-ink-48">
-          ไม่บังคับ — ปักหมุดให้อัตโนมัติตามที่อยู่ที่กรอกด้านบน หรือแตะบนแผนที่/ลากหมุดเพื่อปักเอง
-        </p>
-
-        <div className="mt-2 space-y-3">
-          <ShopMap
-            lat={shop.lat}
-            lng={shop.lng}
-            onPick={(lat, lng) => {
-              // ผู้ใช้ปักเอง — ไม่ต้องรอผลค้นหาที่อยู่ค้างอยู่อีก
-              setAddressGeoStatus("idle");
-              update("shop", { lat, lng });
-            }}
-          />
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={shareLocation}
-              disabled={geoStatus === "loading"}
-              className="inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-6 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment disabled:opacity-60"
-            >
-              <MapPin aria-hidden className="size-4" />
-              {geoStatus === "loading" ? "กำลังอ่านตำแหน่ง…" : "ใช้ตำแหน่งเครื่องฉัน"}
-            </button>
-            {shop.lat && shop.lng ? (
-              <span className="text-caption tabular-nums text-ink-80">
-                พิกัด {shop.lat}, {shop.lng}
-              </span>
-            ) : null}
+      {loadingPopupVisible ? (
+        <div
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/50 p-4 animate-[login-backdrop-in_180ms_ease-out]"
+        >
+          <div
+            role="status"
+            aria-live="polite"
+            className="w-[min(92vw,22rem)] rounded-card bg-canvas p-6 text-ink shadow-lift animate-[login-dialog-in_180ms_ease-out]"
+          >
+            <p className="flex items-center gap-2 text-caption font-semibold text-ink">
+              <MapPin aria-hidden className="size-4 shrink-0 text-brand-ink" />
+              {addressGeoStatus === "loading"
+                ? "กำลังค้นหาที่อยู่จากตำแหน่งที่ปักหมุด…"
+                : "กำลังอ่านตำแหน่งเครื่อง…"}
+            </p>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-hairline">
+              <div
+                className="h-full rounded-full bg-brand transition-[width] duration-150 ease-out"
+                style={{ width: `${Math.min(100, Math.round(loadingProgress))}%` }}
+              />
+            </div>
+            <p className="mt-2 text-right text-fine tabular-nums text-ink-48">
+              {Math.min(100, Math.round(loadingProgress))}%
+            </p>
           </div>
-          <p className="text-fine text-ink-48">
-            กดแล้วระบบจะกรอกจังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์ (และเลขที่/ถนนถ้าหาเจอ) ให้อัตโนมัติ
-            ตามตำแหน่งที่คุณยืนอยู่ตอนนี้ — ตรวจทานอีกครั้งก่อนไปขั้นต่อไปเสมอ
-          </p>
-
-          {addressGeoStatus === "not_found" ? (
-            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
-              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-              ไม่เจอที่อยู่นี้ กรุณาปักหมุดเอง — แตะตำแหน่งบนแผนที่หรือลากหมุดไปยังตำแหน่งร้านจริง
-            </p>
-          ) : null}
-          {geoStatus === "error" ? (
-            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
-              <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
-              อ่านตำแหน่งจากเครื่องไม่สำเร็จ อาจเพราะเบราว์เซอร์ไม่ได้รับอนุญาต ปักหมุดเองบนแผนที่ได้เลย
-            </p>
-          ) : null}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -704,13 +883,13 @@ function SummaryBlock({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset">
+    <section className="rounded-card bg-pearl p-6 ring-1 ring-hairline ring-inset">
       <div className="flex items-center justify-between gap-4">
         <h3 className="text-body font-semibold">{title}</h3>
         <button
           type="button"
           onClick={onEdit}
-          className="min-h-[44px] px-2 text-caption text-accent-ink underline underline-offset-4"
+          className="min-h-[44px] rounded-btn px-3 text-caption font-medium text-brand-ink transition-colors hover:bg-brand/[0.06]"
         >
           แก้ไข
         </button>
@@ -818,7 +997,7 @@ export function ReviewStep({
       {/* ตอนแก้ไขไม่ขอความยินยอมซ้ำ หลักฐานที่เก็บไว้ตอนส่งครั้งแรกยังมีผลและห้ามถูกเขียนทับ
           การแก้ข้อมูลบันทึกไว้ใน audit trail แทน */}
       {editing ? (
-        <p className="rounded-md bg-pearl p-4 text-caption text-ink-80 ring-1 ring-hairline ring-inset">
+        <p className="rounded-input bg-pearl p-4 text-caption leading-[1.7] text-ink-80 ring-1 ring-hairline ring-inset">
           การแก้ไขทุกครั้งจะถูกบันทึกไว้ในประวัติของใบสมัคร
           เพื่อให้เจ้าหน้าที่เห็นว่ามีอะไรเปลี่ยนไปบ้าง
           ความยินยอมที่ให้ไว้ตอนส่งครั้งแรกยังมีผลตามเดิม
@@ -848,7 +1027,7 @@ export function ReviewStep({
           <Link
             href="/privacy"
             target="_blank"
-            className="text-accent-ink underline underline-offset-4"
+            className="text-brand-ink underline underline-offset-4"
           >
             อ่านนโยบายความเป็นส่วนตัว
           </Link>

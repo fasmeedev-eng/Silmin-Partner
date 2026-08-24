@@ -1,9 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CircleCheck } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { auth } from "@/auth";
 import { SiteHeader } from "@/components/site-header";
+import { CtaButton } from "@/components/ui/cta-button";
 import { getDb } from "@/lib/db/mongo";
+import { isActivePartnerUser } from "@/lib/auth/guard";
 
 export const metadata = { title: "ส่งใบสมัครสำเร็จ" };
 
@@ -30,21 +31,31 @@ export default async function ApplySuccessPage({
 
   if (!application) redirect("/me");
 
+  const isActivePartner = await isActivePartnerUser(session.user.id, session.user.role);
+
   return (
     <>
-      <SiteHeader signedIn email={session.user.email} role={session.user.role} />
-      <main className="mx-auto w-full max-w-[640px] px-6 py-16 sm:px-8 sm:py-24">
-        <CircleCheck aria-hidden className="size-10 text-accent-ink" strokeWidth={1.75} />
+      <SiteHeader
+        signedIn
+        email={session.user.email}
+        role={session.user.role}
+        isActivePartner={isActivePartner}
+      />
+      <main className="surface-tint min-h-svh">
+        <div className="mx-auto w-full max-w-[640px] px-6 py-16 lg:px-8 lg:py-24">
+        <span className="flex size-14 items-center justify-center rounded-full bg-brand text-on-brand">
+          <CircleCheck aria-hidden className="size-7" strokeWidth={2} />
+        </span>
 
-        <h1 className="mt-6 text-h3 sm:text-h2">ส่งใบสมัครสำเร็จ</h1>
-        <p className="mt-4 text-body text-ink-80">
+        <h1 className="mt-7 text-h3 font-bold sm:text-h2">ส่งใบสมัครสำเร็จ</h1>
+        <p className="mt-4 text-lead text-ink-80">
           ขอบคุณที่สนใจร่วมเป็นพาร์ทเนอร์กับเรา
           เจ้าหน้าที่จะตรวจสอบข้อมูลและติดต่อกลับตามช่องทางที่ท่านแจ้งไว้
         </p>
 
-        <div className="mt-8 rounded-lg bg-parchment p-6 ring-1 ring-hairline ring-inset">
+        <div className="mt-9 rounded-card bg-canvas p-7 shadow-soft ring-1 ring-hairline/70">
           <p className="text-caption text-ink-48">เลขที่ใบสมัคร</p>
-          <p className="mt-1 text-h3 tabular-nums">{application.applicationId}</p>
+          <p className="mt-1 text-h3 font-bold tabular-nums">{application.applicationId}</p>
           <p className="mt-4 text-caption text-ink-80">
             เก็บเลขนี้ไว้อ้างอิงเวลาติดต่อกลับมา
             หรือเปิดดูได้ตลอดในหน้าใบสมัครของฉัน
@@ -60,19 +71,15 @@ export default async function ApplySuccessPage({
           หากข้อมูลไม่ครบเราจะแจ้งให้แก้ไขในใบเดิม ไม่ต้องกรอกใหม่
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/me"
-            className="inline-flex min-h-[52px] items-center rounded-full bg-accent px-7 text-body text-on-accent transition-colors hover:bg-accent-hover"
-          >
+        <div className="mt-9 flex flex-wrap gap-3">
+          <CtaButton href="/me" variant="brand">
             ดูใบสมัครของฉัน
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex min-h-[52px] items-center rounded-full bg-pearl px-7 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment"
-          >
+            <ArrowRight aria-hidden className="size-[18px]" />
+          </CtaButton>
+          <CtaButton href="/" variant="brand-outline">
             กลับหน้าแรก
-          </Link>
+          </CtaButton>
+        </div>
         </div>
       </main>
     </>

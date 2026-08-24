@@ -3,22 +3,24 @@ import { IBM_Plex_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
 // ฟอนต์ไทย — SF Pro/Inter ไม่มี glyph ภาษาไทย ตัวนี้รับช่วงต่อจากสแตก Latin ใน globals.css
+// 500 (Medium) มีไว้ให้เมนูนำทางโดยเฉพาะ — บนพื้นดำ น้ำหนัก 400 บางจนดูจาง ส่วน 600 หนาจนแย่ง
+// ความสนใจไปจากปุ่ม CTA สีแดง ส่วน 700 คือน้ำหนักของหัวข้อใหญ่ในแบนเนอร์
 const plexThai = IBM_Plex_Sans_Thai({
   variable: "--font-plex-thai",
   subsets: ["thai", "latin"],
-  weight: ["400", "600"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "สมัครเป็นร้านค้าพาร์ทเนอร์ | Silmin Partner",
-    template: "%s | Silmin Partner",
+    default: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG Partner",
+    template: "%s | SG Partner",
   },
   description:
-    "สมัครเป็นร้านค้าพาร์ทเนอร์กับ Silmin กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ทีมงานตรวจสอบและติดต่อกลับภายใน 3 วันทำการ",
+    "สมัครเป็นร้านค้าพาร์ทเนอร์กับ SG กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ทีมงานตรวจสอบและติดต่อกลับภายใน 3 วันทำการ",
   openGraph: {
-    title: "สมัครเป็นร้านค้าพาร์ทเนอร์ | Silmin Partner",
+    title: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG Partner",
     description:
       "กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ติดตามสถานะได้ด้วยตัวเอง",
     locale: "th_TH",

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CircleCheck, MessageSquare, TriangleAlert } from "lucide-react";
-import { STATUS_META } from "@/lib/application/status";
+import { STATUS_META, isDangerStatus } from "@/lib/application/status";
 import { ALLOWED_TRANSITIONS, requiresMessage } from "@/lib/application/transitions";
 import type { ApplicationStatus } from "@/lib/db/applications";
 import { addNoteAction, changeStatusAction } from "../actions";
@@ -107,8 +107,9 @@ export function StaffPanel({
     });
   };
 
+  // focus-visible:outline-none กันเส้นโฟกัสของเบราว์เซอร์มาซ้อนกับ ring ที่วาดเอง (เห็นเป็นเส้นคู่)
   const field =
-    "w-full rounded-md bg-canvas px-4 py-3 text-body text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus:ring-2 focus:ring-accent-ink";
+    "w-full rounded-md bg-canvas px-4 py-3 text-body text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink";
 
   return (
     <section className="rounded-lg bg-parchment p-6 ring-1 ring-hairline ring-inset sm:p-8">
@@ -149,7 +150,7 @@ export function StaffPanel({
           {/* แต่ละตัวเลือกเป็นการ์ดใหญ่พร้อมคำอธิบาย ไม่ใช่ชิปเล็ก ๆ ที่ต้องเดาความหมาย */}
           {options.map((option) => {
             const selected = to === option;
-            const isReject = option === "Rejected";
+            const isReject = isDangerStatus(option);
             return (
               <button
                 key={option}
@@ -160,6 +161,8 @@ export function StaffPanel({
                 }}
                 aria-pressed={selected}
                 className={`block w-full rounded-lg p-5 text-left transition-colors ${
+                  isReject ? "focus-visible:outline-danger-focus" : ""
+                } ${
                   selected
                     ? isReject
                       ? "bg-danger text-on-danger"
@@ -225,8 +228,8 @@ export function StaffPanel({
             type="button"
             onClick={openConfirm}
             className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-full px-8 text-body font-semibold transition-colors sm:w-auto ${
-              to === "Rejected"
-                ? "bg-danger text-on-danger hover:bg-danger-hover"
+              isDangerStatus(to)
+                ? "bg-danger text-on-danger hover:bg-danger-hover focus-visible:outline-danger-focus"
                 : "bg-accent text-on-accent hover:bg-accent-hover"
             }`}
           >
@@ -303,8 +306,8 @@ export function StaffPanel({
               onClick={submitStatus}
               disabled={pending}
               className={`inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full px-6 text-body font-semibold transition-colors disabled:opacity-60 ${
-                to === "Rejected"
-                  ? "bg-danger text-on-danger hover:bg-danger-hover"
+                to !== "" && isDangerStatus(to)
+                  ? "bg-danger text-on-danger hover:bg-danger-hover focus-visible:outline-danger-focus"
                   : "bg-accent text-on-accent hover:bg-accent-hover"
               }`}
             >

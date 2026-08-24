@@ -182,6 +182,38 @@ export function nearestSubDistrict(
   return { province, district: district.name, subDistrict: best.s.name, zip: best.s.zip };
 }
 
+/**
+ * ตำบลที่ใกล้ที่สุด "ภายในอำเภอที่รู้แล้ว" — ใช้ตอน Nominatim บอกจังหวัด/อำเภอมาแต่ไม่บอกตำบล
+ *
+ * ปลอดภัยกว่า nearestSubDistrict แบบค้นทั้งประเทศมาก เพราะขอบเขตถูกล็อกไว้ในอำเภอที่ยืนยันแล้ว
+ * จึงไม่มีทางข้ามไปจังหวัดอื่น และไม่ต้องใช้เพดานระยะทางแคบ ๆ มากันความผิดพลาดนั้น
+ * (เพดาน 3 กม.ของ nearestSubDistrict ทำให้เมืองอย่างพัทยา — ที่จุดกึ่งกลางตำบลอยู่ห่าง 5.7 กม.
+ * และ Nominatim ไม่คืนชื่อตำบลมาด้วย — หาที่อยู่ไม่เจอเลยทั้งที่รู้อำเภอแน่ชัดอยู่แล้ว)
+ */
+export function nearestSubDistrictIn(
+  provinceName: string,
+  districtName: string,
+  point: { lat: number; lng: number },
+): { province: string; district: string; subDistrict: string; zip: string } | undefined {
+  const province = provinces.find((p) => p.name === provinceName);
+  if (!province) return undefined;
+  const district = (districtsByProvinceId.get(province.id) ?? []).find(
+    (d) => d.name === districtName,
+  );
+  if (!district) return undefined;
+
+  const candidates = subDistrictsByDistrictId.get(district.id) ?? [];
+  let best: { s: (typeof candidates)[number]; distanceKm: number } | undefined;
+  for (const s of candidates) {
+    if (s.lat === null || s.lng === null) continue;
+    const distanceKm = haversineKm(point, { lat: s.lat, lng: s.lng });
+    if (!best || distanceKm < best.distanceKm) best = { s, distanceKm };
+  }
+  if (!best) return undefined;
+
+  return { province: province.name, district: district.name, subDistrict: best.s.name, zip: best.s.zip };
+}
+
 const ADMIN_PREFIXES = ["ตำบล", "แขวง", "อำเภอ", "เขต", "จังหวัด"];
 
 /** คืนทั้งชื่อดิบและชื่อที่ตัดคำนำหน้าออก (ถ้ามี) เพื่อลองจับคู่ทั้งสองแบบ */
@@ -224,4 +256,24 @@ export function matchAdminNames(
     subDistrict: subDistrict.name,
     zip: subDistrict.zip,
   };
+}
+
+/**
+ * จับคู่ได้แค่ระดับจังหวัด+อำเภอ ใช้ตอน Nominatim ไม่คืนชื่อตำบลมาให้ (เกิดบ่อยในเขตเทศบาล
+ * อย่างเมืองพัทยา/ภูเก็ต) คู่กับ nearestSubDistrictIn เพื่อเดาตำบลต่อภายในอำเภอที่ยืนยันแล้ว
+ */
+export function matchDistrictOnly(
+  rawFields: readonly string[],
+): { province: string; district: string } | undefined {
+  const candidates = new Set(rawFields.flatMap(nameCandidates));
+
+  const province = provinces.find((p) => candidates.has(p.name));
+  if (!province) return undefined;
+
+  const district = (districtsByProvinceId.get(province.id) ?? []).find((d) =>
+    candidates.has(d.name),
+  );
+  if (!district) return undefined;
+
+  return { province: province.name, district: district.name };
 }

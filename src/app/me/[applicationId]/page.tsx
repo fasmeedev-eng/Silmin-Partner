@@ -4,11 +4,14 @@ import { ArrowLeft, Check, CircleCheck, FileText, Paperclip, Pencil } from "luci
 import { auth } from "@/auth";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { CtaButton } from "@/components/ui/cta-button";
 import { findOwnApplication, listActivities } from "@/lib/db/applications";
+import { isActivePartnerUser } from "@/lib/auth/guard";
 import {
   STATUS_META,
   STATUS_TRACK,
   editBlockedReason,
+  isDangerStatus,
   isEditable,
   statusChipClass,
   trackIndex,
@@ -49,9 +52,9 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset">
+    <section className="rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7">
       <h2 className="text-body font-semibold">{title}</h2>
-      <dl className="mt-2">{children}</dl>
+      <dl className="mt-3">{children}</dl>
     </section>
   );
 }
@@ -86,7 +89,10 @@ export default async function ApplicationDetailPage({
   const { data, status } = application;
   const meta = STATUS_META[status];
   const editable = isEditable(status);
-  const activities = await listActivities(applicationId);
+  const [activities, isActivePartner] = await Promise.all([
+    listActivities(applicationId),
+    isActivePartnerUser(session.user.id, session.user.role),
+  ]);
   const current = trackIndex(status);
   const address = [
     data.shop.address.line1,
@@ -101,12 +107,18 @@ export default async function ApplicationDetailPage({
 
   return (
     <>
-      <SiteHeader signedIn email={session.user.email} role={session.user.role} />
+      <SiteHeader
+        signedIn
+        email={session.user.email}
+        role={session.user.role}
+        isActivePartner={isActivePartner}
+      />
 
-      <main className="mx-auto w-full max-w-[1040px] px-6 py-12 sm:px-8 sm:py-16">
+      <main className="surface-tint min-h-svh">
+        <div className="mx-auto w-full max-w-[1040px] px-6 py-12 lg:px-8 lg:py-16">
         <Link
           href="/me"
-          className="inline-flex min-h-[44px] items-center gap-2 text-caption text-ink-80 transition-colors hover:text-ink"
+          className="inline-flex min-h-[44px] items-center gap-2 text-caption font-medium text-ink-80 transition-colors hover:text-ink"
         >
           <ArrowLeft aria-hidden className="size-4" />
           ใบสมัครทั้งหมด
@@ -115,10 +127,12 @@ export default async function ApplicationDetailPage({
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-caption tabular-nums text-ink-48">{application.applicationId}</p>
-            <h1 className="mt-1 text-h3 sm:text-h2">{data.shop.name || "ใบสมัครพาร์ทเนอร์"}</h1>
+            <h1 className="mt-1 text-h3 font-bold sm:text-h2">
+              {data.shop.name || "ใบสมัครพาร์ทเนอร์"}
+            </h1>
           </div>
           <span
-            className={`inline-flex min-h-[32px] shrink-0 items-center rounded-full px-4 text-caption font-semibold ${statusChipClass(status)}`}
+            className={`inline-flex min-h-[34px] shrink-0 items-center rounded-full px-4 text-caption font-semibold ${statusChipClass(status)}`}
           >
             {meta.label}
           </span>
@@ -127,20 +141,26 @@ export default async function ApplicationDetailPage({
         {saved ? (
           <p
             role="status"
-            className="mt-4 flex items-center gap-2 rounded-md bg-pearl p-4 text-caption text-ink ring-1 ring-hairline ring-inset"
+            className="mt-5 flex items-center gap-2.5 rounded-input bg-canvas p-4 text-caption font-medium text-ink ring-1 ring-hairline ring-inset"
           >
-            <CircleCheck aria-hidden className="size-4 shrink-0 text-accent-ink" />
+            <CircleCheck aria-hidden className="size-[18px] shrink-0 text-brand" />
             บันทึกการแก้ไขเรียบร้อยแล้ว
           </p>
         ) : null}
 
-        <p className="mt-4 max-w-[60ch] text-body text-ink-80">{meta.detail}</p>
+        <p className="mt-5 max-w-[62ch] text-lead text-ink-80">{meta.detail}</p>
 
         {/* ข้อความจากเจ้าหน้าที่ต้องเด่นกว่าคำอธิบายสถานะทั่วไป เพราะเป็นสิ่งที่เขียนถึงร้านนี้โดยเฉพาะ */}
         {application.statusMessage ? (
-          <div className="mt-5 max-w-[62ch] rounded-lg bg-parchment p-5 ring-1 ring-hairline ring-inset">
+          <div
+            className={`mt-6 max-w-[64ch] rounded-card p-6 ring-1 ring-inset ${
+              isDangerStatus(status)
+                ? "bg-danger/[0.06] ring-danger/25"
+                : "bg-gold-soft ring-gold"
+            }`}
+          >
             <p className="text-caption font-semibold text-ink">ข้อความจากเจ้าหน้าที่</p>
-            <p className="mt-2 whitespace-pre-line text-caption text-ink-80">
+            <p className="mt-2 whitespace-pre-line text-caption leading-[1.7] text-ink-80">
               {application.statusMessage}
             </p>
           </div>
@@ -154,37 +174,64 @@ export default async function ApplicationDetailPage({
         {/* แก้ไขได้เฉพาะสถานะ "รับข้อมูลแล้ว" — สถานะอื่นบอกเหตุผลแทนที่จะซ่อนปุ่มเงียบ ๆ
             คนที่จำได้ว่าเคยแก้ได้ ต้องรู้ว่าทำไมตอนนี้ทำไม่ได้และควรทำอย่างไรแทน */}
         {editable ? (
-          <Link
-            href={`/me/${applicationId}/edit`}
-            className="mt-6 inline-flex min-h-[52px] items-center gap-2 rounded-full bg-accent px-7 text-body text-on-accent transition-colors hover:bg-accent-hover"
-          >
-            <Pencil aria-hidden className="size-4" />
-            แก้ไขข้อมูลใบสมัคร
-          </Link>
+          <div className="mt-7">
+            <CtaButton href={`/me/${applicationId}/edit`} variant="brand">
+              <Pencil aria-hidden className="size-[18px]" />
+              แก้ไขข้อมูลใบสมัคร
+            </CtaButton>
+          </div>
         ) : (
-          <p className="mt-6 rounded-md bg-pearl p-4 text-caption text-ink-80 ring-1 ring-hairline ring-inset">
+          <p
+            className={`mt-7 max-w-[64ch] rounded-input p-4 text-caption leading-[1.7] ring-1 ring-inset ${
+              isDangerStatus(status)
+                ? "bg-danger/[0.06] text-danger-ink ring-danger/25"
+                : "bg-canvas text-ink-80 ring-hairline"
+            }`}
+          >
             {editBlockedReason(status)}
           </p>
         )}
 
         {/* แถบความคืบหน้า — ตอบคำถามเดียวที่ผู้สมัครอยากรู้: ตอนนี้อยู่ตรงไหนของเส้นทาง */}
-        <section className="mt-10" aria-label="ความคืบหน้าของใบสมัคร">
-          <ol className="grid gap-x-4 gap-y-6 sm:grid-cols-5">
+        {/* ใช้ภาษาเดียวกับ stepper ในฟอร์ม — คนคนเดียวกันเห็นทั้งสองหน้า วงกลม+เส้นเชื่อมแบบเดียวกัน
+            จึงอ่านออกทันทีโดยไม่ต้องเรียนรู้ใหม่ ต่างกันแค่ที่นี่กดไม่ได้ เพราะเป็นสถานะ ไม่ใช่ทางเดิน */}
+        <section
+          className="mt-10 rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7"
+          aria-label="ความคืบหน้าของใบสมัคร"
+        >
+          <ol className="flex items-start">
             {STATUS_TRACK.map((step, index) => {
               const done = index < current;
               const isCurrent = index === current;
               return (
-                <li key={step.status} className="border-t-2 pt-4"
-                  style={{ borderColor: index <= current ? "var(--accent)" : "var(--hairline)" }}
+                <li
+                  key={step.status}
+                  className="relative flex flex-1 flex-col items-center"
                 >
-                  <span
-                    className={`inline-flex size-6 items-center justify-center rounded-full text-fine font-semibold ${done || isCurrent ? "bg-accent text-on-accent" : "bg-pearl text-ink-48 ring-1 ring-hairline ring-inset"
+                  {index > 0 ? (
+                    <span
+                      aria-hidden
+                      className={`absolute right-1/2 top-4 h-0.5 w-full sm:top-[18px] ${
+                        done || isCurrent ? "bg-brand" : "bg-hairline"
                       }`}
+                    />
+                  ) : null}
+                  <span
+                    aria-current={isCurrent ? "step" : undefined}
+                    className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-fine font-semibold tabular-nums sm:size-9 ${
+                      isCurrent
+                        ? "bg-brand text-on-brand ring-4 ring-brand/15"
+                        : done
+                          ? "bg-brand text-on-brand"
+                          : "bg-canvas text-ink-48 ring-1 ring-hairline ring-inset"
+                    }`}
                   >
-                    {done ? <Check aria-hidden className="size-3.5" strokeWidth={3} /> : index + 1}
+                    {done ? <Check aria-hidden className="size-4" strokeWidth={3} /> : index + 1}
                   </span>
                   <p
-                    className={`mt-2 text-caption ${isCurrent ? "font-semibold text-ink" : "text-ink-48"}`}
+                    className={`mt-2.5 text-center text-fine leading-tight ${
+                      isCurrent ? "font-semibold text-ink" : done ? "text-ink-80" : "text-ink-48"
+                    }`}
                   >
                     {step.label}
                   </p>
@@ -192,8 +239,15 @@ export default async function ApplicationDetailPage({
               );
             })}
           </ol>
+
           {status === "NeedMoreInfo" || status === "Rejected" ? (
-            <p className="mt-6 rounded-md bg-pearl p-4 text-caption text-ink-80 ring-1 ring-hairline ring-inset">
+            <p
+              className={`mt-7 rounded-input p-4 text-caption leading-[1.7] ring-1 ring-inset ${
+                isDangerStatus(status)
+                  ? "bg-danger/[0.06] text-danger-ink ring-danger/25"
+                  : "bg-gold-soft text-ink-80 ring-gold"
+              }`}
+            >
               {status === "NeedMoreInfo"
                 ? "ใบสมัครหยุดรออยู่ที่ขั้นตรวจสอบ จนกว่าจะได้รับข้อมูลเพิ่มเติมจากคุณ"
                 : "ใบสมัครนี้สิ้นสุดที่ขั้นตรวจสอบ"}
@@ -253,7 +307,7 @@ export default async function ApplicationDetailPage({
             <Row label="ช่วงเวลาที่สะดวก" value={labelOf(CALLBACK_SLOTS, data.interests.callbackSlot)} />
           </Block>
 
-          <section className="rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset">
+          <section className="rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7">
             <h2 className="text-body font-semibold">
               เอกสารแนบ
               <span className="pl-2 font-normal text-ink-48">
@@ -273,14 +327,14 @@ export default async function ApplicationDetailPage({
                         {files.map((file) => (
                           <li
                             key={file.id}
-                            className="flex items-center gap-3 rounded-md bg-pearl p-3 ring-1 ring-hairline ring-inset"
+                            className="flex items-center gap-3 rounded-input bg-pearl p-3 ring-1 ring-hairline ring-inset"
                           >
                             <Paperclip aria-hidden className="size-4 shrink-0 text-ink-48" />
                             <a
                               href={`/api/documents/${file.id}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="min-w-0 flex-1 truncate text-caption text-accent-ink underline underline-offset-4"
+                              className="min-w-0 flex-1 truncate text-caption font-medium text-brand-ink underline underline-offset-4 hover:text-brand-hover"
                             >
                               {file.fileName}
                             </a>
@@ -306,11 +360,11 @@ export default async function ApplicationDetailPage({
         {/* ประวัติการแก้ไข — ผู้สมัครต้องเห็นด้วย ไม่ใช่เก็บไว้ให้เจ้าหน้าที่ฝ่ายเดียว
             เพราะเป็นหลักฐานว่าสิ่งที่แก้ไปถูกบันทึกจริง */}
         {activities.length > 0 ? (
-          <section className="mt-4 rounded-lg bg-canvas p-6 ring-1 ring-hairline ring-inset">
+          <section className="mt-4 rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7">
             <h2 className="text-body font-semibold">ประวัติของใบสมัคร</h2>
-            <ol className="mt-4 space-y-4">
+            <ol className="mt-5 space-y-5">
               {activities.map((activity, index) => (
-                <li key={`${activity.at.toISOString()}-${index}`} className="border-l-2 border-hairline pl-4">
+                <li key={`${activity.at.toISOString()}-${index}`} className="border-l-2 border-brand/25 pl-4">
                   <p className="text-caption text-ink">{activity.message}</p>
                   <p className="mt-0.5 text-fine text-ink-48">{thaiDate.format(activity.at)}</p>
                   {activity.changes?.length ? (
@@ -335,12 +389,13 @@ export default async function ApplicationDetailPage({
           มีข้อสงสัยเกี่ยวกับใบสมัครนี้ ติดต่อทีมงานที่{" "}
           <a
             href="mailto:partner@silmin.co.th"
-            className="text-accent-ink underline underline-offset-4"
+            className="font-medium text-brand-ink underline underline-offset-4 hover:text-brand-hover"
           >
             partner@silmin.co.th
           </a>{" "}
           พร้อมแจ้งเลขที่ใบสมัคร
         </p>
+        </div>
       </main>
 
       <SiteFooter />

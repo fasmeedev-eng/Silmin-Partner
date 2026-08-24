@@ -117,7 +117,7 @@ export function UserRow({
                 setNextRole(e.target.value as Role);
                 confirmRef.current?.showModal();
               }}
-              className="mt-2 min-h-[52px] rounded-md bg-canvas px-4 text-body text-ink ring-1 ring-hairline ring-inset focus:outline-none focus:ring-2 focus:ring-accent-ink disabled:opacity-50"
+              className="mt-2 min-h-[52px] rounded-md bg-canvas px-4 text-body text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink disabled:opacity-50"
             >
               {ROLES.map((role) => (
                 <option key={role} value={role}>
@@ -136,7 +136,7 @@ export function UserRow({
               title={isSelf ? "ปิดบัญชีของตัวเองไม่ได้" : undefined}
               className={`mt-2 inline-flex min-h-[52px] items-center rounded-full px-6 text-body transition-colors disabled:opacity-50 ${
                 user.active
-                  ? "bg-pearl text-ink ring-1 ring-hairline ring-inset hover:bg-parchment"
+                  ? "bg-pearl text-ink ring-1 ring-hairline ring-inset hover:bg-danger/10 hover:text-danger-ink hover:ring-danger/25 focus-visible:outline-danger-focus"
                   : "bg-ink text-on-dark"
               }`}
             >

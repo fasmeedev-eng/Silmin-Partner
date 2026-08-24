@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Inbox, ShieldCheck, Users } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { ROLE_LABELS, type Role } from "@/lib/auth/roles";
 
 const ITEMS = [
@@ -35,8 +36,12 @@ export function AdminSidebar({
       {/* จอเล็กเรียงเป็นสองแถว จอใหญ่เป็นแถบข้าง — เมนูสามอันตัดบรรทัดปนกับชื่อผู้ใช้แล้วอ่านยาก */}
       <div className="flex flex-col lg:h-full lg:px-4 lg:py-6">
         <div className="flex items-center justify-between gap-4 px-6 py-3 lg:px-0 lg:py-0">
-          <Link href="/" className="text-caption font-semibold tracking-[0.02em] text-white">
-            silmin<span className="pl-1.5 font-normal text-white/60">partner</span>
+          <Link
+            href="/"
+            aria-label="SG Partner — กลับหน้าแรก"
+            className="rounded-sm focus-visible:outline-accent"
+          >
+            <BrandLogo tone="dark" />
           </Link>
 
           <div className="flex items-center gap-2 lg:hidden">

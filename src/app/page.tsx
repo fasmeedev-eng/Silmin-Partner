@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { LoginDialogProvider } from "@/components/auth/login-dialog";
 import { SiteHeader } from "@/components/site-header";
+import { isActivePartnerUser } from "@/lib/auth/guard";
 import { SiteFooter } from "@/components/site-footer";
 import { Hero } from "@/components/landing/hero";
 import { PrepareSection } from "@/components/landing/prepare-section";
@@ -14,10 +15,17 @@ export default async function Home() {
   // หน้านี้เปิดสาธารณะ อ่าน session เพียงเพื่อตัดสินใจว่าปุ่มจะเปิด popup เข้าสู่ระบบหรือพาไปต่อ
   const session = await auth();
   const signedIn = Boolean(session?.user);
+  const isActivePartner = await isActivePartnerUser(session?.user?.id, session?.user?.role);
 
   return (
     <LoginDialogProvider>
-      <SiteHeader signedIn={signedIn} email={session?.user?.email} role={session?.user?.role} />
+      <SiteHeader
+        signedIn={signedIn}
+        email={session?.user?.email}
+        role={session?.user?.role}
+        isActivePartner={isActivePartner}
+        sectionNav
+      />
 
       {/* เว้นที่ด้านล่างให้แถบ CTA ติดขอบจอมือถือ */}
       <main className="pb-24 sm:pb-0">

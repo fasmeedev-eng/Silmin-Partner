@@ -99,14 +99,16 @@ export function labelsOf(options: readonly Option[], values: string[] | undefine
 }
 
 /** ขั้นตอนของฟอร์ม — ใช้ทั้งแถบความคืบหน้าและการตรวจความถูกต้องรายขั้น */
+// title = หัวข้อเต็มของขั้น ใช้เป็น h1 ของหน้า
+// short = ป้ายใต้วงกลมใน stepper ต้องสั้นพอให้เจ็ดขั้นเรียงกันได้ในบรรทัดเดียวโดยไม่ตัดคำ
 export const STEPS = [
-  { id: "shop", title: "ข้อมูลร้าน" },
-  { id: "contact", title: "ข้อมูลผู้ติดต่อ" },
-  { id: "business", title: "ข้อมูลธุรกิจ" },
-  { id: "sales", title: "ข้อมูลการขาย" },
-  { id: "documents", title: "เอกสาร" },
-  { id: "interests", title: "ความสนใจและการติดต่อกลับ" },
-  { id: "review", title: "ตรวจสอบและยืนยัน" },
+  { id: "shop", title: "ข้อมูลร้าน", short: "ร้าน" },
+  { id: "contact", title: "ข้อมูลผู้ติดต่อ", short: "ผู้ติดต่อ" },
+  { id: "business", title: "ข้อมูลธุรกิจ", short: "ธุรกิจ" },
+  { id: "sales", title: "ข้อมูลการขาย", short: "การขาย" },
+  { id: "documents", title: "เอกสาร", short: "เอกสาร" },
+  { id: "interests", title: "ความสนใจและการติดต่อกลับ", short: "ความสนใจ" },
+  { id: "review", title: "ตรวจสอบและยืนยัน", short: "ตรวจสอบ" },
 ] as const;
 
 export type StepId = (typeof STEPS)[number]["id"];

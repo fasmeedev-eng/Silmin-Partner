@@ -22,7 +22,7 @@
   --pearl: #fcfbf6;
   --tile: #161513;
   --tile-alt: #201f1c;
-  --nav: #0b0b0a;
+  --nav: #0a0a0a;
 
   /* ink */
   --ink: #16150f;
@@ -49,6 +49,31 @@
   --danger-ink: #b91c1c;
   --danger-focus: #b91c1c;
   --on-danger: #ffffff;
+
+  /* brand — แดง/ทองของหน้าแรกและแถบนำทาง (ดีไซน์ที่ผู้ใช้เลือก)
+     คนละความหมายกับ --danger แม้เฉดจะใกล้กัน: --brand แปลว่า "กดตรงนี้"
+     ส่วน --danger แปลว่า "ผิดพลาด/ปฏิเสธ" ห้ามสลับกันใช้ เพราะปุ่มลบกับปุ่มสมัคร
+     ต้องไม่หน้าตาเหมือนกัน แม้จะอยู่คนละหน้า */
+  --brand: #ef2027;
+  --brand-hover: #d4161c;
+  /* แดงบนขาว #ef2027 ได้ ~3.6:1 — ผ่านสำหรับตัวใหญ่ แต่ไม่ผ่านสำหรับตัวเล็ก
+     ตัวหนังสือแดงขนาด caption จึงต้องใช้ --brand-ink (~4.9:1) เสมอ */
+  --brand-ink: #c8151b;
+  --brand-soft: #fef0f0;
+  --on-brand: #ffffff;
+  /* --gold คือทองสำหรับ "พื้น" เท่านั้น (#ffd84d บนขาว = 1.5:1 อ่านไม่ออกเลย)
+     --gold-deep เป็นปลายทองของ gradient ในหัวข้อ (~3.2:1 ผ่านเกณฑ์ตัวใหญ่)
+     --gold-ink สำหรับตัวหนังสือทองขนาดเล็กบนพื้นสว่าง */
+  --gold: #ffd84d;
+  --gold-deep: #d99000;
+  --gold-ink: #8a6a00;
+  --gold-soft: #fff9e6;
+
+  /* รัศมีมุมของภาษาดีไซน์หน้าแรก — คนละสเกลกับ --radius-sm/md/lg ของหน้าแอปโดยตั้งใจ */
+  --r-btn: 14px;
+  --r-input: 12px;
+  --r-card: 24px;
+  --r-phone: 44px;
 
   /* Latin/ตัวเลข ใช้สแตกตาม DESIGN.md ก่อน — สระ/วรรณยุกต์ไทยตกมาที่ IBM Plex Sans Thai
      ประกาศไว้ที่ :root ไม่ใช่ใน @theme inline เพราะ inline จะไม่ปล่อยตัวแปรออกมาให้ var() ใช้ */
@@ -87,6 +112,16 @@
     --danger-ink: #f87171;
     --danger-focus: #f87171;
     --on-danger: #ffffff;
+
+    --brand: #f5333a;
+    --brand-hover: #ff5158;
+    --brand-ink: #ff7f84;
+    --brand-soft: #2c1315;
+    --on-brand: #ffffff;
+    --gold: #ffd84d;
+    --gold-deep: #ffc233;
+    --gold-ink: #ffd061;
+    --gold-soft: #2c2413;
   }
 }
 
@@ -116,6 +151,15 @@
   --danger-ink: #f87171;
   --danger-focus: #f87171;
   --on-danger: #ffffff;
+
+  --brand: #ef2b36;
+  --brand-hover: #ff4a53;
+  --brand-ink: #ff7075;
+  --brand-soft: #2b1416;
+  --on-brand: #ffffff;
+  --gold: #f5b31d;
+  --gold-ink: #f5c04a;
+  --gold-soft: #2b2214;
 }
 
 @theme inline {
@@ -147,6 +191,27 @@
   --color-danger-ink: var(--danger-ink);
   --color-danger-focus: var(--danger-focus);
   --color-on-danger: var(--on-danger);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-soft: var(--gold-soft);
+
+  --radius-btn: var(--r-btn);
+  --radius-input: var(--r-input);
+  --radius-card: var(--r-card);
+  --radius-phone: var(--r-phone);
+
+  /* เงาชุดหน้าแรก — ฟุ้ง กว้าง และจาง เพื่อให้อ่านเป็น "ความลึก" ไม่ใช่ "ขอบเข้ม"
+     ต่างจาก .product-shadow ของหน้าแอปที่คมและเข้มกว่า */
+  --shadow-soft: 0 20px 60px rgb(10 10 10 / 0.08);
+  --shadow-lift: 0 24px 70px rgb(10 10 10 / 0.14);
+  --shadow-device: 0 44px 96px -28px rgb(10 10 10 / 0.32);
 
   --font-sans: var(--font-stack-sans);
   --font-display: var(--font-stack-display);
@@ -199,11 +264,16 @@ body {
   text-wrap: balance;
 }
 
-/* โฟกัสคีย์บอร์ดต้องเห็นชัดเสมอ */
-:focus-visible {
-  outline: 2px solid var(--accent-focus);
-  outline-offset: 3px;
-  border-radius: 4px;
+/* โฟกัสคีย์บอร์ดต้องเห็นชัดเสมอ — ต้องอยู่ใน @layer base ไม่งั้นชนะ focus-visible:outline-none
+   ของ input/select เสมอไม่ว่า specificity เท่าไหร่ (Tailwind v4 ใส่ utility ไว้ใน @layer utilities
+   ส่วนกฎที่ไม่ได้อยู่ใน layer ไหนเลยชนะกฎที่อยู่ใน layer เสมอ ไม่สนใจ specificity) ผลคือ input ที่วาด
+   ring โฟกัสเองจะเห็นเป็นเส้นคู่ซ้อนกัน (ring ของ input + outline เส้นนี้) ถ้าไม่ย้ายเข้า layer */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent-focus);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -223,6 +293,40 @@ body {
 /* เงาเดียวในระบบ — ใช้กับภาพสินค้าที่วางบนพื้นผิวเท่านั้น */
 .product-shadow {
   filter: drop-shadow(3px 5px 30px rgb(0 0 0 / 0.22));
+}
+
+/* พื้นอุ่นจางมาก — ใช้สลับกับขาวเพื่อสร้างจังหวะของหน้าโดยไม่ต้องมีเส้นคั่น
+   และเพื่อให้การ์ดสีขาวที่วางทับอ่านออกว่าเป็นอีกระนาบหนึ่ง ไม่ใช่พื้นเดียวกัน */
+.surface-tint {
+  background: color-mix(in oklab, var(--brand) 2%, var(--canvas));
+}
+
+/* มือถือในแบนเนอร์ลอยขึ้นลงช้า ๆ — เป็น "จังหวะหายใจ" ที่ทำให้หน้าเว็บไม่นิ่งสนิท ไม่ใช่เอฟเฟกต์โชว์
+   บล็อก prefers-reduced-motion ด้านบนตัดแอนิเมชันนี้ทิ้งให้อยู่แล้ว จึงไม่ต้องเขียนซ้ำ */
+@keyframes device-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.device-float {
+  animation: device-float 7s ease-in-out infinite;
+}
+
+/* แผงเมนูจอเล็ก — เลื่อนลงมาสั้น ๆ ให้รู้ว่ามันมาจากแถบด้านบน ไม่ใช่โผล่มาเฉย ๆ */
+@keyframes nav-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.nav-panel-in {
+  animation: nav-panel-in 200ms ease-out;
 }
 
 /* popup เข้าสู่ระบบ — โผล่เร็วและเบา ไม่ให้รู้สึกว่าโดนขวางทาง */

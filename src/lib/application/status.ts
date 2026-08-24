@@ -13,6 +13,11 @@ interface StatusMeta {
   needsAction: boolean;
   /** จบกระบวนการแล้ว (ทั้งทางบวกและทางลบ) */
   settled: boolean;
+  /**
+   * ผลลบจริง ๆ (ไม่ผ่าน) ใช้ตัดสินว่าจะเน้นสีแดง (--danger) หรือไม่
+   * รวมไว้ที่นี่จุดเดียวแทนการเทียบ status === "Rejected" กระจายไปหลายไฟล์
+   */
+  dangerStyled: boolean;
 }
 
 export const STATUS_META: Record<ApplicationStatus, StatusMeta> = {
@@ -21,50 +26,63 @@ export const STATUS_META: Record<ApplicationStatus, StatusMeta> = {
     detail: "ยังกรอกไม่เสร็จ กลับมากรอกต่อได้ทุกเมื่อ",
     needsAction: true,
     settled: false,
+    dangerStyled: false,
   },
   New: {
     label: "รอดำเนินการ",
     detail: "เราได้รับใบสมัครแล้ว ทีมงานจะเริ่มตรวจสอบภายใน 1–3 วันทำการ",
     needsAction: false,
     settled: false,
+    dangerStyled: false,
   },
   Reviewing: {
     label: "กำลังตรวจสอบ",
     detail: "เจ้าหน้าที่กำลังตรวจข้อมูลและเอกสารของร้านคุณ",
     needsAction: false,
     settled: false,
+    dangerStyled: false,
   },
   NeedMoreInfo: {
     label: "รอข้อมูลเพิ่มเติม",
     detail: "เจ้าหน้าที่ขอข้อมูลหรือเอกสารเพิ่ม ดูรายละเอียดด้านล่างแล้วส่งเพิ่มได้เลย",
     needsAction: true,
     settled: false,
+    dangerStyled: false,
   },
   Approved: {
     label: "ผ่านการอนุมัติ",
     detail: "ใบสมัครผ่านการพิจารณาแล้ว ทีมขายจะติดต่อกลับเพื่อคุยขั้นตอนถัดไป",
     needsAction: false,
     settled: false,
+    dangerStyled: false,
   },
   Rejected: {
     label: "ไม่ผ่าน",
     detail: "ใบสมัครนี้ยังไม่ผ่านการพิจารณา หากมีข้อสงสัยติดต่อทีมงานได้",
     needsAction: false,
     settled: true,
+    dangerStyled: true,
   },
   Onboarding: {
     label: "อยู่ระหว่างทำสัญญา",
     detail: "อยู่ในขั้นตอนทำสัญญาและเปิดระบบ ทีมงานจะแจ้งเอกสารที่ต้องใช้",
     needsAction: false,
     settled: false,
+    dangerStyled: false,
   },
   ActivePartner: {
     label: "เป็นพาร์ทเนอร์แล้ว",
     detail: "เปิดใช้งานเรียบร้อย เริ่มเสนอบริการผ่อนให้ลูกค้าได้เลย",
     needsAction: false,
     settled: true,
+    dangerStyled: false,
   },
 };
+
+/** สถานะนี้ควรเน้นด้วยสีแดง (--danger) ไหม — จุดเดียวที่ตัดสิน แทนการเทียบสตริงกระจายไปทั่วโค้ด */
+export function isDangerStatus(status: ApplicationStatus): boolean {
+  return STATUS_META[status].dangerStyled;
+}
 
 /**
  * จัดกลุ่ม 7 สถานะเป็น 3 กอง ตามคำถามที่เจ้าหน้าที่ถามจริง ๆ ว่า "ฉันต้องทำอะไร"
@@ -150,8 +168,11 @@ export function editBlockedReason(status: ApplicationStatus): string {
  */
 export function statusChipClass(status: ApplicationStatus): string {
   const meta = STATUS_META[status];
-  if (meta.needsAction) return "bg-accent text-on-accent";
-  if (status === "ActivePartner" || status === "Approved") return "bg-ink text-on-dark";
-  if (status === "Rejected") return "bg-danger/10 text-danger-ink ring-1 ring-danger/25 ring-inset";
+  // เหลืองคือ "ลูกบอลอยู่ที่คุณ" ตามการแบ่งบทบาทสีของหน้าแรก (เหลือง = ข้อมูลสำคัญ/ไฮไลต์)
+  // ตัวอักษรบนเหลืองต้องเป็นสีเข้ม — ขาวบน #FFD84D ได้คอนทราสต์แค่ ~1.5:1
+  if (meta.needsAction) return "bg-gold text-[#0a0a0a]";
+  if (meta.dangerStyled) return "bg-danger/10 text-danger-ink ring-1 ring-danger/25 ring-inset";
+  // ดำคือ "จบแล้ว/ผ่านแล้ว" — ไม่ใช้แดง เพราะชิปไม่ใช่สิ่งที่กดได้ แดงสงวนไว้ให้ปุ่มกับ error
+  if (status === "ActivePartner" || status === "Approved") return "bg-nav text-white";
   return "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset";
 }

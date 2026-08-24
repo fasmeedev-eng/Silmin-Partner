@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { hasActivePartnerApplication } from "@/lib/db/applications";
 import type { Role } from "./roles";
 
 export interface StaffSession {
@@ -48,6 +49,34 @@ export async function guardRole(allowed: readonly Role[]): Promise<GuardResult> 
       role,
     },
   };
+}
+
+/**
+ * "พาร์ทเนอร์" ในที่นี้ไม่ใช่บทบาท (role) แต่คือร้านที่มีใบสมัครถึงสถานะ ActivePartner แล้ว
+ * (สาขาไหนก็ได้ — ดู hasActivePartnerApplication) admin เห็น/ทดสอบได้เสมอเหมือนจุดอื่นในระบบ
+ * ใช้ทั้งเปิด/ปิดปุ่มบน navbar (isActivePartnerUser) และกันหน้า /partner/* (guardPartnerAccess)
+ */
+export async function isActivePartnerUser(
+  userId: string | undefined,
+  role: Role | undefined,
+): Promise<boolean> {
+  if (!userId) return false;
+  if (role === "admin") return true;
+  return hasActivePartnerApplication(userId);
+}
+
+export type PartnerAccessResult =
+  | { allowed: true }
+  | { allowed: false; reason: "unauthenticated" }
+  | { allowed: false; reason: "not_partner" };
+
+export async function guardPartnerAccess(): Promise<PartnerAccessResult> {
+  const session = await auth();
+  if (!session?.user?.id) return { allowed: false, reason: "unauthenticated" };
+  if (session.user.active === false) return { allowed: false, reason: "not_partner" };
+
+  const ok = await isActivePartnerUser(session.user.id, session.user.role);
+  return ok ? { allowed: true } : { allowed: false, reason: "not_partner" };
 }
 
 // คำแปลบทบาทอยู่ในไฟล์ข้อมูลล้วน เพื่อให้ client component ใช้ได้โดยไม่ลาก MongoDB ตาม

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, Lock } from "lucide-react";
 import { auth } from "@/auth";
 import { SiteHeader } from "@/components/site-header";
+import { CtaButton } from "@/components/ui/cta-button";
 import { ApplyForm } from "@/app/apply/apply-form";
 import { findOwnApplication } from "@/lib/db/applications";
+import { isActivePartnerUser } from "@/lib/auth/guard";
 import { STATUS_META, editBlockedReason, isEditable } from "@/lib/application/status";
 
 export async function generateMetadata({
@@ -29,27 +31,37 @@ export default async function EditApplicationPage({
   // ไม่พบ = ไม่มีจริง หรือไม่ใช่ของคนนี้ ตอบเหมือนกันทั้งสองกรณี
   if (!application) redirect("/me");
 
+  const isActivePartner = await isActivePartnerUser(session.user.id, session.user.role);
+
   // ด่านนี้เป็นแค่ UX — updateApplicationAction ตรวจสถานะซ้ำบนเซิร์ฟเวอร์ตอนกดบันทึกอยู่แล้ว
   if (!isEditable(application.status)) {
     return (
       <>
-        <SiteHeader signedIn email={session.user.email} role={session.user.role} />
-        <main className="mx-auto w-full max-w-[560px] px-6 py-16 sm:px-8 sm:py-24">
-          <Lock aria-hidden className="size-8 text-ink-48" strokeWidth={1.5} />
-          <h1 className="mt-6 text-h3">แก้ไขใบสมัครนี้ไม่ได้แล้ว</h1>
-          <p className="mt-4 text-body text-ink-80">
-            {editBlockedReason(application.status)}
-          </p>
-          <p className="mt-4 text-caption text-ink-48">
-            สถานะปัจจุบัน: {STATUS_META[application.status].label}
-          </p>
-          <Link
-            href={`/me/${applicationId}`}
-            className="mt-8 inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-7 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment"
-          >
-            <ArrowLeft aria-hidden className="size-4" />
-            กลับไปดูใบสมัคร
-          </Link>
+        <SiteHeader
+          signedIn
+          email={session.user.email}
+          role={session.user.role}
+          isActivePartner={isActivePartner}
+        />
+        <main className="surface-tint min-h-svh">
+          <div className="mx-auto w-full max-w-[560px] px-6 py-16 lg:px-8 lg:py-24">
+            <span className="flex size-14 items-center justify-center rounded-full bg-pearl ring-1 ring-hairline">
+              <Lock aria-hidden className="size-6 text-ink-48" strokeWidth={1.6} />
+            </span>
+            <h1 className="mt-7 text-h3 font-bold">แก้ไขใบสมัครนี้ไม่ได้แล้ว</h1>
+            <p className="mt-4 text-lead text-ink-80">
+              {editBlockedReason(application.status)}
+            </p>
+            <p className="mt-4 text-caption text-ink-48">
+              สถานะปัจจุบัน: {STATUS_META[application.status].label}
+            </p>
+            <div className="mt-9">
+              <CtaButton href={`/me/${applicationId}`} variant="brand-outline">
+                <ArrowLeft aria-hidden className="size-[18px]" />
+                กลับไปดูใบสมัคร
+              </CtaButton>
+            </div>
+          </div>
         </main>
       </>
     );
@@ -64,9 +76,14 @@ export default async function EditApplicationPage({
 
   return (
     <>
-      <SiteHeader signedIn email={session.user.email} role={session.user.role} />
-      <main>
-        <div className="mx-auto w-full max-w-[720px] px-6 pt-8 sm:px-8">
+      <SiteHeader
+        signedIn
+        email={session.user.email}
+        role={session.user.role}
+        isActivePartner={isActivePartner}
+      />
+      <main className="surface-tint min-h-svh">
+        <div className="mx-auto w-full max-w-[860px] px-6 pt-10 lg:px-8">
           <Link
             href={`/me/${applicationId}`}
             className="inline-flex min-h-[44px] items-center gap-2 text-caption text-ink-80 transition-colors hover:text-ink"

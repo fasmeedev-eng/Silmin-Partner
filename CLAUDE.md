@@ -97,7 +97,8 @@ Tailwind v4 through `@tailwindcss/postcss` — there is **no `tailwind.config`**
 
 `DESIGN.md` (562 lines) is the project's design system: an Apple-style language with YAML tokens at the top and prose guidance below. Read it before building any UI. The rules that are easy to violate accidentally:
 
-- Exactly one accent hue, plus one semantic danger hue. **The brand palette is white / `#FFE169` / black / `--danger` red — Action Blue `#0066cc` from `DESIGN.md` is superseded and must not reappear.** Red is not a second accent: it is reserved for error/rejection/destructive meaning only (see `--danger` family below), never used to draw attention the way yellow is. See **The yellow rule** below, which is the part that is easy to get wrong.
+- **The app surfaces** (`/apply`, `/me`, `/admin`, `/partner`) use exactly one accent hue plus one semantic danger hue: white / `#FFE169` / black / `--danger` red. Action Blue `#0066cc` from `DESIGN.md` is superseded and must not reappear. Inside those surfaces red is not a second accent — it is reserved for error/rejection/destructive meaning only (see `--danger` family below), never used to draw attention the way yellow is. See **The yellow rule** below, which is the part that is easy to get wrong.
+- **The landing page and the site header** run on a separate red/gold brand palette — see **The landing brand palette** below. This is a deliberate later decision by the user from a reference comp, not drift, and it is the reason `--brand` exists alongside `--danger`.
 - Body copy is 17px / weight 400 / line-height 1.47. Weight 500 does not exist in the ladder (300 / 400 / 600 / 700).
 - Headlines are weight 600 with negative letter-spacing.
 - Exactly one drop-shadow in the whole system, and it is only for product photography — never cards, buttons, or text. Elevation comes from surface-color change instead.
@@ -124,14 +125,85 @@ The consequence for layout is that light sections carry almost no yellow — it 
 
 One deliberate exception to the single-hue rule is the four-color Google mark, noted above.
 
+#### The landing brand palette
+
+The landing page and `SiteHeader` run on a red/gold palette that the rest of the app does not. The four brand colours are white, `#0A0A0A`, yellow `#FFD84D`, red `#EF2027`, specified by the user. **They are deliberately not used in equal amounts**: white is the ground, black is nav and type, yellow is highlight, red is *only* the primary action and the active state. Spreading red and yellow evenly is what turns this into a discount-flyer, and is the single easiest way to wreck it.
+
+| Token | Light | Use |
+|---|---|---|
+| `--brand` | `#EF2027` | Primary action fill — CTA buttons, the phone's next button, icon chips, active nav underline |
+| `--brand-hover` | `#D4161C` | Hover of a `--brand` fill |
+| `--brand-ink` | `#C8151B` | Red as **small** text/icon on a light surface (badge label, check glyphs) |
+| `--brand-soft` | `#FEF0F0` | Tinted badge background |
+| `--on-brand` | `#FFFFFF` | Text on a `--brand` fill |
+| `--gold` | `#FFD84D` | Gold **fills** only — the two yellow icon chips in the feature strip |
+| `--gold-deep` | `#D99000` | The gold end of the "Silmin" wordmark gradient |
+| `--gold-ink` | `#8A6A00` | Gold as small text on a light surface |
+
+Contrast is the constraint that shapes most of these:
+
+- `#EF2027` on white is ~3.6:1 — fine for large text, **fails for caption-sized text**. Small red text must use `--brand-ink` (~4.9:1). This is why there are two reds.
+- `#FFD84D` on white is ~1.5:1 — invisible as text. Gold is a fill, full stop. The "Silmin" wordmark is a `--gold-deep → --brand` gradient precisely so both ends clear 3:1; a flat `--gold` wordmark is a bug.
+- White on `#FFD84D` is ~1.5:1, white on `#EF2027` is ~4.5:1. That is why the gold icon chips carry black glyphs while the red ones carry white. The asymmetry is the colours, not an oversight.
+
+Other rules that are easy to get wrong here:
+
+- **`--brand` and `--danger` are different meanings that happen to share a hue.** `--brand` means "press this"; `--danger` means "this failed / this deletes something". Never substitute one for the other — a delete button and a sign-up button must not look identical, even on different pages. This is why red was added as a new token family rather than by widening `--danger`'s remit.
+- **The red covers every applicant-facing surface: landing page, header, footer, `/apply`, `/apply/success`, `/me`, `/me/[id]`, `/me/[id]/edit`, and `/partner/calculator`.** Only `/admin` still runs on yellow `--accent`. Recoloring the back office is a separate decision the user has not made; do not "finish the job" unasked.
+
+**Status chips carry meaning through colour, and the mapping is deliberate** (`statusChipClass` in `status.ts`): **gold** = the ball is in the applicant's court (`Draft`, `NeedMoreInfo`); **black** = settled and good (`Approved`, `ActivePartner`); **danger red** = `Rejected`; **grey** = in progress, nothing to do. Brand red never appears on a chip — a chip is not something you press, and reserving red for buttons and errors is what keeps both legible. Text on the gold chip must stay near-black (white on `#FFD84D` is ~1.5:1).
+
+`/me/[id]`'s five-stage status track intentionally reuses the `FormStepper` visual language (same circles, check marks, and red connectors) — the same person sees both screens, so they should not have to learn two progress idioms. The difference is that the status track is not clickable: it reports where the application *is*, it is not a path the applicant walks.
+
+#### Red means "error" inside a form — never "focused" or "selected"
+
+`--brand` (`#EF2027`) and `--danger` (`#DC2626`) are all but indistinguishable to the eye. On the landing page that is harmless, but a form has to say "this field is wrong" in a way nothing else says. So inside `form-fields.tsx` the hues are split by *job*, and the split is load-bearing:
+
+| State | Treatment |
+|---|---|
+| Focused input | 2px **ink** ring |
+| Selected radio / checkbox / consent row | 2px **ink** ring + `bg-pearl`, with the control's dot or tick filled `--brand` |
+| Error | 2px **danger** ring + `bg-danger/[0.04]` + a `CircleAlert` icon beside the message |
+
+The rule to preserve: **a red ring anywhere in a form means the value is wrong.** Brand red survives as the filled dot/tick, the progress bar, the step icon, the required asterisk, and the buttons — all shapes that cannot be mistaken for a field outline. Do not "brand" the focus or selected ring back to red; it silently destroys the only error signal the form has.
+
+The form itself is a white `rounded-card` with `shadow-soft` floating on `surface-tint`, container `860px` (narrower than the landing 1280 — a single column of fields does not want a wide measure).
+
+**Progress is a stepper, not a bar** (`src/app/apply/form-stepper.tsx`). A bar only answers "how far along"; the stepper also answers "what is left and what did I already pass", which is what matters in a seven-step form. Rules baked into it:
+
+- **Completed steps are buttons; the current and future ones are not.** Jumping forward would skip the validation of the steps in between. Going back is safe because `goNext` re-validates on the way forward, and `updateOwnApplication`/`submitAction` validate again server-side.
+- `STEPS` in `options.ts` carries both `title` (the page `h1`) and `short` (the label under the circle). Seven full Thai titles cannot sit on one line, so keep `short` short — and keep both in that file, since it is the single source for step copy *and* per-step validation.
+- Labels are `lg`-only; below that the circles stand alone and the current step's name is carried by the `h1` right underneath. The `<li>`s are `flex-1` and the connectors are absolutely positioned, so the row shrinks instead of overflowing on narrow screens.
+- **Red must never out-shout the CTA.** The benefits checklist uses `bg-brand/10` chips with `--brand-ink` glyphs, not five solid red circles, because five saturated dots carry more combined visual weight than the one red button below them and the eye stops at the list. `TrustInfo` is fully grey for the same reason — it sits centimetres from the CTA.
+- The reference comp's copy is restaurant-domain placeholder text ("ส่วนลดบนเมนู", "เมนูพิเศษ"). The real product copy (ค่าตอบแทน, แผนผ่อนชำระ) was kept deliberately — the design was taken, the claims were not.
+
+**Landing-only scales.** `--r-btn` 14 / `--r-input` 12 / `--r-card` 24 / `--r-phone` 44 (`rounded-btn`, `rounded-input`, `rounded-card`, `rounded-phone`) are a separate radius scale from the app's `sm`/`md`/`lg`, and `--shadow-soft` / `--shadow-lift` / `--shadow-device` are wide, faint shadows unlike the app's single crisp `.product-shadow`. Weight **500** now exists in the ladder (300/400/500/600/700) and is loaded in `layout.tsx` — it is the nav-link weight only; 400 looks washed out on black and 600 competes with the red CTA.
+
+**The whole landing page runs on this language, not just the hero.** Section rhythm is `tint → canvas → tint → tile → canvas → tile`, set by the `tone` prop on `Section`; the surface change *is* the divider, so never add a rule or border between sections. `Section` and `SectionHeading` (`src/components/ui/section.tsx`) own the 1280 container, the `py-20 lg:py-28` block, and the heading scale — a landing section that hand-rolls its own container will drift out of alignment with the navbar.
+
+**There are no eyebrows/kickers above headings.** `Eyebrow` was deleted, not left unused. A label that restates the heading it sits on ("ก่อนเริ่ม" over "เตรียมไว้ 3 อย่าง…") costs a line and adds nothing; where the words carried meaning they were folded into the heading itself ("หลังกดส่ง คุณจะรู้ตลอด…"). Do not reintroduce the pattern.
+
+Where each colour lands across the page, and why: **gold** is the icon-chip fill in `PrepareSection` and the accent inside `DataScopeSection` (on black it measures ~13:1 — this is the one place gold can carry text and icons directly); **black** is the numbered circles in `ProcessSection`, because a sequence is structure, not an action; **soft red** is the checklist glyphs and the FAQ toggle; **solid red** appears only on buttons and the active nav item. `ProcessSection` deliberately has no red at all.
+
+**Component split** (`src/components/landing/`): `hero.tsx` composes only. `hero-backdrop.tsx`, `phone-mockup.tsx`, `benefits-list.tsx`, `trust-info.tsx`, `feature-strip.tsx` each own one thing. `SiteHeader` stays a **server** component so the sign-out `form` keeps its server action; the hamburger is `mobile-nav.tsx` (client) and receives the sign-out button as a rendered `actions` prop, the same pattern as `AdminSidebar`. Shared link data lives in `src/components/nav-links.ts`, which imports nothing so both sides can use it.
+
+**The nav width budget is measured, not guessed.** The container caps at 1280 (≈1216 usable), and the signed-in cluster plus five links overflows it. That is why the full menu appears at `xl` (1280) rather than `lg`, why หลังบ้าน and the email are dropped from the bar on the landing page only, and why 1024–1279 gets the hamburger. Adding anything to that bar means re-measuring, not eyeballing.
+
+The colours inside `phone-mockup.tsx` (`#0a0a0c`, `#131317`, `#3d3d44`) and its 9.5–15px type are deliberately off both the palette and the type ramp: it is a picture of a device at reduced scale, not page UI. The design detector flags them; that is expected.
+
 #### The danger token
 
-`--danger` (`#dc2626`, red-600) is the fourth color, added deliberately by the user and scoped narrowly: it means "error, rejection, or a destructive action," never "look here." Unlike `#FFE169`, red-600 has enough contrast on white (~4.8:1) to serve as text directly, so it doesn't need the same fill/ink split — `--danger-ink` exists only so it can brighten to `#F87171` (red-400) on dark surfaces, where `#DC2626` alone reads too dark. `--on-danger` is white text sitting on a `--danger` fill. Current usage: field-level validation errors (`Field`/`CheckboxCard` in `form-fields.tsx`, and the matching inline errors in `steps.tsx`/`documents-step.tsx`), the Rejected status chip (`statusChipClass` in `status.ts`), the Rejected transition option/confirm buttons in `StaffPanel`, the document-delete hover state, and top-level error banners (`role="alert"` banners for a failed submit/action). It is deliberately **not** applied to the "needs action"/"overdue" yellow highlights in the back-office queue (those stay `--accent-ink` by design — see **Back office**) or to any success/confirmation banner (those keep `CircleCheck` + `--accent-ink`), since neither of those is actually an error.
+`--danger` (`#dc2626`, red-600) is the fourth color, added deliberately by the user and scoped narrowly: it means "error, rejection, or a destructive action," never "look here." Unlike `#FFE169`, red-600 has enough contrast on white (~4.8:1) to serve as text directly, so it doesn't need the same fill/ink split — `--danger-ink` exists only so it can brighten to `#F87171` (red-400) on dark surfaces, where `#DC2626` alone reads too dark. `--on-danger` is white text sitting on a `--danger` fill, and `--danger-focus` (same value as `--danger-ink`) is the focus-visible outline color for controls already in a danger state — never the default `:focus-visible` color, which stays `--accent-focus`.
 
-Two Tailwind-v4 traps that already cost a debugging round:
+**Whether a *status* (not just a validation error) gets the danger treatment is decided in exactly one place**: `StatusMeta.dangerStyled` in `status.ts`, read through `isDangerStatus()`. Today only `Rejected` is `true`. Every consumer — `statusChipClass`, the three status-driven boxes on `/me/[applicationId]` (`statusMessage`, the track-stage note, `editBlockedReason`), and the three Rejected-branch spots in `StaffPanel` (the option card, "ดำเนินการ", the confirm dialog's "ยืนยัน") — calls `isDangerStatus()` rather than comparing `=== "Rejected"` directly, so adding a second danger-styled status later is a one-line change to `STATUS_META`, not a grep-and-replace across files.
+
+Current usage: field-level validation errors (`Field`/`ConsentCheckbox`/`TextInput`/`SelectInput` in `form-fields.tsx`, and the matching inline errors and invalid-rings in `steps.tsx`/`documents-step.tsx`), everything gated by `isDangerStatus()` as described above, the document-delete hover state, the deactivate-account hover state in `/admin/users`, and top-level error banners (`role="alert"` banners for a failed submit/action). It is deliberately **not** applied to the "needs action"/"overdue" yellow highlights in the back-office queue (those stay `--accent-ink` by design — see **Back office**) or to any success/confirmation banner (those keep `CircleCheck` + `--accent-ink`), since neither of those is actually an error.
+
+Three Tailwind-v4 traps that already cost a debugging round:
 
 - **`@theme inline` does not emit the custom property.** It inlines the value into generated utilities, so `var(--font-sans)` inside a hand-written CSS rule resolves to nothing and the rule silently dies. Declare the real value on `:root` under a separate name (`--font-stack-sans`) and have `@theme inline` point at *that*.
 - **The `next/font` variable class belongs on `<html>`, not `<body>`.** `:root` references `--font-plex-thai`; with the class on `<body>` the `:root` declaration is invalid at computed-value time, and the whole font stack falls back to the browser default without any error.
+- **A hand-written global rule outside `@layer` always beats a Tailwind utility class, no matter its specificity.** `@import "tailwindcss"` puts every utility inside CSS cascade layers, and an unlayered rule always wins over a layered one regardless of selector specificity — this is a hard rule of the CSS Cascade Layers spec, not a close call. `globals.css` had a bare `:focus-visible { outline: 2px solid var(--accent-focus); ... }` for the site-wide focus ring; inputs in `form-fields.tsx` draw their own focus ring via `focus:ring-2` and tried to cancel the outline with `focus-visible:outline-none`, which compiles to `.focus-visible\:outline-none:focus-visible { outline-style: none; }` — two classes plus a pseudo-class, higher specificity than the bare `:focus-visible` rule, and it still lost, because it's inside Tailwind's layer and the global rule isn't in any layer. Symptom was a focused input showing two concentric borders (the ring plus the outline). Fix: wrap the custom rule in `@layer base { ... }` so normal layer-order rules (base < utilities) decide it instead of specificity. Any future hand-written CSS meant to be overridable by a Tailwind utility must go inside a layer.
 
 ## Storage split
 
@@ -215,6 +287,38 @@ Everything else in `DESIGN.md` (single accent, spacing rhythm, one shadow, no gr
 Step 5 (เอกสาร) is a client component that talks to `/api/apply/documents` directly, because documents are Drive pointers rather than form fields and so are not part of `ApplicationData`. It reports its file counts up to `ApplyForm`, which blocks "ถัดไป" until every category marked `required` in `categories.ts` has at least one file (รูปหน้าร้าน and เอกสารเจ้าของร้าน); `submitAction` and `updateApplicationAction` re-check the same rule server-side.
 
 **`documentsComplete()` in `src/lib/application/categories.ts` is the single definition of "เอกสารครบ"** — the applicant form and the back-office ครบ/ไม่ครบ column both call it. Two separate definitions would eventually disagree, and then the queue would flag an application as incomplete that the system itself had just accepted. Note that applications submitted before เอกสารเจ้าของร้าน became required now read as ไม่ครบ, which is correct: the column answers "is this complete by today's rule", not "was it complete when it arrived". `stepSchemas.documents` is empty on purpose — there is nothing about documents inside `ApplicationData` for Zod to check.
+
+### Address and map (step 1)
+
+**พิกัดร้าน (the map) sits *before* ที่อยู่ร้าน (the address fields)** — the user's explicit ordering. Pinning first and letting the address fill itself is faster than working down five cascading dropdowns, but both directions still work: the map pins itself from a completed address too. The copy under the heading has to describe both, or whichever direction it omits looks broken.
+
+Address data comes from a bundled offline dataset (`src/lib/application/data/thai-address.json`, ~491KB, from `kongvut/thai-province-data`) accessed through `src/lib/application/thai-address.ts`. Two gaps in that data drive the design:
+
+- **No Bangkok subdistrict has lat/lng** (all 170 are null; ~7124 of 7452 nationwide do have them). So `nearestSubDistrict()` — the offline point→subdistrict fallback — silently cross-matches Bangkok points into a neighbouring province. It is therefore the *fallback*, capped at 3km, and the primary path is Nominatim reverse-geocoding fed through `matchAdminNames()`.
+- **Nominatim names its address fields inconsistently** (Bangkok: `quarter`/`suburb`/`city`; elsewhere: `city_district`/`county`/`province`). `/api/reverse-geocode` therefore returns *every* candidate field untouched and `matchAdminNames()` tries each one, raw and with `ADMIN_PREFIXES` stripped, against the real dataset. Do not "clean this up" by mapping field names to levels — that is the bug this replaced.
+
+Both geocoding routes are **server-side proxies because Nominatim's policy requires an identifying `User-Agent`**, which a browser cannot set. Both are auth-gated.
+
+**Forward geocoding must use structured search, not free text.** `/api/geocode` sends `street` (Thai) plus `city`/`state` in **English** (via `englishNamesOf`), because Nominatim's free-text search returns nothing for pure-Thai queries — repeatedly confirmed, even for a single unambiguous province name. The caller sanity-checks the result against the subdistrict centroid and discards anything more than 10km away.
+
+**House-number autofill falls back to Overpass, in three tiers.** Nominatim only returns `house_number` when the point lands *on* an object tagged with one; a phone's 5–30m GPS drift usually snaps it to the road instead, which returns nothing. So `/api/reverse-geocode` queries the **Overpass API** (`overpass-api.de`, free, no key) for `addr:housenumber` objects within 250m and splits them by distance — measured with haversine on our side, since Overpass's own `around:` measures to polygon edges while we compare against centroids:
+
+| Distance | Behaviour |
+|---|---|
+| ≤ 45m (`AUTOFILL_RADIUS_M`) | filled into เลขที่ automatically, `houseNumberNearby: true` |
+| ≤ 250m (`SUGGEST_RADIUS_M`) | returned as `houseNumberCandidates`, offered as tappable chips — never auto-filled |
+| nothing found | the form says so explicitly ("บริเวณนี้ไม่มีข้อมูลเลขที่บ้านในแผนที่") |
+
+- **45m is a correctness boundary, not a tuning knob.** Past it you are filling in a *neighbour's* house number, which is worse than leaving the field blank, because the applicant may not notice before submitting. That is why the 45–250m band is a suggestion the user taps, not an autofill.
+- **Every outcome must be visible.** Thai OSM house-number coverage is sparse — rural points routinely have nothing within 250m. Silence there reads as a broken button, which is exactly what got reported; the third tier exists to say "no data here, type it yourself".
+- The form refuses to overwrite a house number the user typed themselves when the match is only `houseNumberNearby`; an exact Nominatim hit overwrites freely and shows no note.
+
+**Overpass rate-limiting is the failure mode to know about.** `overpass-api.de` allows only **2 concurrent slots per IP**, and every user shares the server's IP in production. Two defences, both required:
+
+- **Results are cached in-process** keyed by coordinates rounded to 4 decimals (~11m), 1 hour TTL, 500 entries. Empty results are deliberately **not** cached — an empty list may mean "rate-limited", and caching that would pin a wrong answer for an hour.
+- **`fetchOverpass` must inspect the body, not just the status.** When rate-limited, Overpass frequently returns **HTTP 200 with an HTML error page** saying `rate_limited` — `response.ok` is `true`, so a status-only check passes, `JSON.parse` then throws, and the request silently degrades to "no house number found" even though the data exists. This was the actual cause of the intermittent failures. It retries up to 3 times on 429, 504, or a non-JSON body containing `rate_limited`/`runtime error`.
+
+Public Overpass mirrors (kumi.systems, private.coffee, osm.jp) were tested and are unreachable from this environment, so there is no failover instance to switch to.
 
 **Never import from `@/lib/drive/folders` (or anything else that reaches MongoDB or Drive) inside a client component.** It pulls the MongoDB driver into the browser bundle, and the error you get is `Module not found: Can't resolve 'child_process'` from a file named `mongocryptd_manager.js`, which points nowhere near the real cause. Shared constants live in `src/lib/application/categories.ts`, which imports nothing at all; `folders.ts` re-exports them for server code.
 

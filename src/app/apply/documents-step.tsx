@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { FileText, Plus, Trash2 } from "lucide-react";
+import { CircleAlert, FileText, Plus, Trash2 } from "lucide-react";
 import { ALLOWED_LABEL, humanSize } from "@/lib/application/documents";
 import { DOCUMENT_CATEGORIES } from "@/lib/application/categories";
 
@@ -113,15 +113,16 @@ export function DocumentsStep({
   return (
     <div className="space-y-7">
       <p className="max-w-[60ch] text-caption text-ink-48">
-        หมวดที่มีเครื่องหมาย <span className="text-accent-ink">*</span> ต้องแนบอย่างน้อย 1 ไฟล์
+        หมวดที่มีเครื่องหมาย <span className="text-brand">*</span> ต้องแนบอย่างน้อย 1 ไฟล์
         ส่วนหมวดอื่นแนบเท่าที่มี · รองรับ {ALLOWED_LABEL}
       </p>
 
       {error ? (
         <p
           role="alert"
-          className="rounded-md bg-danger/10 p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset"
+          className="flex items-start gap-2.5 rounded-input bg-danger/[0.06] p-4 text-caption text-danger-ink ring-1 ring-inset ring-danger/25"
         >
+          <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={2.25} />
           {error}
         </p>
       ) : null}
@@ -134,22 +135,22 @@ export function DocumentsStep({
         return (
           <section
             key={category.id}
-            className={`rounded-lg p-6 ring-1 ring-inset ${
-              missingRequired ? "ring-2 ring-accent-ink" : "ring-hairline"
+            className={`rounded-card p-6 ring-1 ring-inset transition-colors ${
+              missingRequired ? "bg-danger/[0.04] ring-2 ring-danger" : "bg-pearl ring-hairline"
             }`}
           >
             <h3 className="text-body font-semibold">
               {category.label}
-              {category.required ? <span className="pl-1 text-accent-ink">*</span> : null}
+              {category.required ? <span className="pl-1 text-brand">*</span> : null}
             </h3>
-            <p className="mt-1 text-fine text-ink-48">{category.hint}</p>
+            <p className="mt-1.5 text-fine text-ink-48">{category.hint}</p>
 
             {files.length > 0 ? (
               <ul className="mt-4 space-y-2">
                 {files.map((file) => (
                   <li
                     key={file.id}
-                    className="flex items-center gap-3 rounded-md bg-pearl p-3 ring-1 ring-hairline ring-inset"
+                    className="flex items-center gap-3 rounded-input bg-canvas p-3 ring-1 ring-hairline ring-inset"
                   >
                     {file.mimeType.startsWith("image/") ? (
                       <Image
@@ -171,7 +172,7 @@ export function DocumentsStep({
                         href={`/api/documents/${file.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="block truncate text-caption text-accent-ink underline underline-offset-4"
+                        className="block truncate text-caption font-medium text-brand-ink underline underline-offset-4 hover:text-brand-hover"
                       >
                         {file.fileName}
                       </a>
@@ -182,7 +183,7 @@ export function DocumentsStep({
                       type="button"
                       onClick={() => void remove(file.id)}
                       aria-label={`ลบ ${file.fileName}`}
-                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-48 transition-colors hover:bg-danger/10 hover:text-danger-ink"
+                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-48 transition-colors hover:bg-danger/10 hover:text-danger-ink focus-visible:outline-danger-focus"
                     >
                       <Trash2 aria-hidden className="size-4" />
                     </button>
@@ -208,9 +209,9 @@ export function DocumentsStep({
               type="button"
               disabled={loading || full || busyCategories.has(category.id)}
               onClick={() => inputRefs.current[category.id]?.click()}
-              className="mt-4 inline-flex min-h-[52px] items-center gap-2 rounded-full bg-pearl px-6 text-body text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment disabled:opacity-60"
+              className="mt-4 inline-flex min-h-[52px] items-center gap-2 rounded-btn bg-canvas px-6 text-body font-medium text-ink ring-1 ring-hairline ring-inset transition-all hover:-translate-y-0.5 hover:shadow-soft hover:ring-ink-48/40 disabled:pointer-events-none disabled:opacity-60 motion-reduce:hover:translate-y-0"
             >
-              <Plus aria-hidden className="size-4" />
+              <Plus aria-hidden className="size-[18px]" />
               {busyCategories.has(category.id)
                 ? "กำลังอัปโหลด…"
                 : full
@@ -219,7 +220,11 @@ export function DocumentsStep({
             </button>
 
             {missingRequired ? (
-              <p role="alert" className="mt-3 text-fine text-danger-ink">
+              <p
+                role="alert"
+                className="mt-3 flex items-start gap-1.5 text-fine text-danger-ink"
+              >
+                <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" strokeWidth={2.25} />
                 แนบ{category.label}อย่างน้อย 1 ไฟล์
               </p>
             ) : null}

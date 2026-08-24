@@ -1,7 +1,7 @@
-import { ChevronDown } from "lucide-react";
-import { Eyebrow, Section } from "@/components/ui/section";
+import { Plus } from "lucide-react";
+import { Section, SectionHeading } from "@/components/ui/section";
 
-const faqs = [
+const FAQS = [
   {
     q: "สมัครมีค่าใช้จ่ายไหม",
     a: "ไม่มีค่าสมัครและไม่มีค่ามัดจำ การกรอกใบสมัครยังไม่ผูกมัดว่าต้องร่วมงานกัน คุณยกเลิกได้ทุกเมื่อก่อนเซ็นสัญญา",
@@ -24,24 +24,33 @@ const faqs = [
   },
 ];
 
+/**
+ * ใช้ <details> ล้วน ไม่ต้องมี JS ฝั่ง client — เปิดปิดได้แม้สคริปต์ยังโหลดไม่เสร็จ
+ * และ Ctrl+F ของเบราว์เซอร์ยังหาข้อความในคำตอบที่ปิดอยู่เจอ ซึ่ง accordion ที่ทำด้วย JS มักทำไม่ได้
+ *
+ * เครื่องหมายเป็น + ที่หมุนเป็น × ตอนเปิด แทนลูกศรลง — บอกได้ตรงกว่าว่า "กดเพื่อกาง/พับ"
+ */
 export function FaqSection() {
   return (
     <Section tone="canvas" id="faq">
-      <Eyebrow>คำถามที่พบบ่อย</Eyebrow>
-      <h2 className="mt-4 max-w-[20ch] text-h3 sm:text-h2">ถามกันมาบ่อยที่สุด</h2>
+      <SectionHeading title="คำถามที่พบบ่อย" />
 
-      <div className="mt-10 max-w-[72ch]">
-        {faqs.map(({ q, a }) => (
-          <details key={q} className="group border-b border-hairline">
-            <summary className="flex min-h-[60px] items-center justify-between gap-6 py-4 text-body font-semibold">
+      <div className="mt-12 max-w-[80ch] space-y-3">
+        {FAQS.map(({ q, a }) => (
+          <details
+            key={q}
+            className="group rounded-card bg-canvas ring-1 ring-hairline transition-colors open:ring-hairline hover:ring-ink-48/25"
+          >
+            <summary className="flex min-h-[68px] cursor-pointer list-none items-center justify-between gap-6 px-6 py-4 text-body font-semibold">
               {q}
-              <ChevronDown
+              <span
                 aria-hidden
-                className="size-5 shrink-0 text-accent-ink transition-transform duration-200 group-open:rotate-180"
-                strokeWidth={2}
-              />
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-ink transition-transform duration-300 ease-out group-open:rotate-[135deg]"
+              >
+                <Plus className="size-4" strokeWidth={2.5} />
+              </span>
             </summary>
-            <p className="pb-5 text-caption text-ink-80">{a}</p>
+            <p className="px-6 pb-6 text-body leading-[1.75] text-ink-80">{a}</p>
           </details>
         ))}
       </div>
