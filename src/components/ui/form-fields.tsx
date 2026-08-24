@@ -32,7 +32,7 @@ export function Field({
       {hint ? <p className="mt-1 text-fine text-ink-48">{hint}</p> : null}
       <div className="mt-2">{children}</div>
       {error ? (
-        <p id={`${id}-error`} role="alert" className="mt-2 text-fine text-accent-ink">
+        <p id={`${id}-error`} role="alert" className="mt-2 text-fine text-danger-ink">
           {error}
         </p>
       ) : null}
@@ -222,7 +222,7 @@ export function ConsentCheckbox({
     <div>
       <label
         className={`group flex cursor-pointer items-start gap-3 rounded-md p-4 ring-1 ring-inset transition-colors ${
-          error ? "ring-2 ring-accent-ink" : "ring-hairline"
+          error ? "ring-2 ring-danger-ink" : "ring-hairline"
         } hover:bg-pearl has-[:checked]:bg-pearl has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent-focus`}
       >
         <input
@@ -242,7 +242,7 @@ export function ConsentCheckbox({
         <span className="text-caption text-ink-80">{children}</span>
       </label>
       {error ? (
-        <p role="alert" className="mt-2 text-fine text-accent-ink">
+        <p role="alert" className="mt-2 text-fine text-danger-ink">
           {error}
         </p>
       ) : null}

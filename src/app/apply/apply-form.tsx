@@ -255,7 +255,7 @@ export function ApplyForm({
       </div>
 
       {submitError ? (
-        <p role="alert" className="mt-6 rounded-md bg-pearl p-4 text-caption text-accent-ink ring-1 ring-hairline ring-inset">
+        <p role="alert" className="mt-6 rounded-md bg-danger/10 p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset">
           {submitError}
         </p>
       ) : null}

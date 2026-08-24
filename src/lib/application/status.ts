@@ -144,11 +144,14 @@ export function editBlockedReason(status: ApplicationStatus): string {
   return "ใบสมัครนี้ผ่านขั้นตรวจสอบไปแล้ว จึงแก้ไขเองไม่ได้ หากข้อมูลคลาดเคลื่อนกรุณาติดต่อทีมงาน";
 }
 
-/** ชิปแสดงสถานะ — คงกฎ accent สีเดียว เหลืองใช้เฉพาะตอนที่ "ถึงตาผู้สมัคร" เท่านั้น */
+/**
+ * ชิปแสดงสถานะ — เหลืองใช้เฉพาะตอนที่ "ถึงตาผู้สมัคร" เท่านั้น
+ * แดง (--danger) ใช้เฉพาะ Rejected เพราะเป็นผลลบจริง ๆ ต่างจากสถานะ settled อื่นที่เป็นกลาง/บวก
+ */
 export function statusChipClass(status: ApplicationStatus): string {
   const meta = STATUS_META[status];
   if (meta.needsAction) return "bg-accent text-on-accent";
   if (status === "ActivePartner" || status === "Approved") return "bg-ink text-on-dark";
-  if (status === "Rejected") return "bg-pearl text-ink-48 ring-1 ring-hairline ring-inset";
+  if (status === "Rejected") return "bg-danger/10 text-danger-ink ring-1 ring-danger/25 ring-inset";
   return "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset";
 }

@@ -122,7 +122,7 @@ export function StaffPanel({
       {error ? (
         <p
           role="alert"
-          className="mt-5 flex items-start gap-2 rounded-md bg-canvas p-4 text-caption text-accent-ink ring-2 ring-accent-ink ring-inset"
+          className="mt-5 flex items-start gap-2 rounded-md bg-canvas p-4 text-caption text-danger-ink ring-2 ring-danger-ink ring-inset"
         >
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
           {error}
@@ -149,6 +149,7 @@ export function StaffPanel({
           {/* แต่ละตัวเลือกเป็นการ์ดใหญ่พร้อมคำอธิบาย ไม่ใช่ชิปเล็ก ๆ ที่ต้องเดาความหมาย */}
           {options.map((option) => {
             const selected = to === option;
+            const isReject = option === "Rejected";
             return (
               <button
                 key={option}
@@ -160,7 +161,9 @@ export function StaffPanel({
                 aria-pressed={selected}
                 className={`block w-full rounded-lg p-5 text-left transition-colors ${
                   selected
-                    ? "bg-accent text-on-accent"
+                    ? isReject
+                      ? "bg-danger text-on-danger"
+                      : "bg-accent text-on-accent"
                     : "bg-canvas ring-1 ring-hairline ring-inset hover:bg-pearl"
                 }`}
               >
@@ -168,7 +171,9 @@ export function StaffPanel({
                   {STATUS_META[option].label}
                 </span>
                 <span
-                  className={`mt-1 block text-caption ${selected ? "text-on-accent/80" : "text-ink-80"}`}
+                  className={`mt-1 block text-caption ${
+                    selected ? (isReject ? "text-on-danger/80" : "text-on-accent/80") : "text-ink-80"
+                  }`}
                 >
                   {ACTION_HINTS[option] ?? STATUS_META[option].detail}
                 </span>
@@ -219,7 +224,11 @@ export function StaffPanel({
           <button
             type="button"
             onClick={openConfirm}
-            className="inline-flex min-h-[56px] w-full items-center justify-center rounded-full bg-accent px-8 text-body font-semibold text-on-accent transition-colors hover:bg-accent-hover sm:w-auto"
+            className={`inline-flex min-h-[56px] w-full items-center justify-center rounded-full px-8 text-body font-semibold transition-colors sm:w-auto ${
+              to === "Rejected"
+                ? "bg-danger text-on-danger hover:bg-danger-hover"
+                : "bg-accent text-on-accent hover:bg-accent-hover"
+            }`}
           >
             ดำเนินการ
           </button>
@@ -293,7 +302,11 @@ export function StaffPanel({
               type="button"
               onClick={submitStatus}
               disabled={pending}
-              className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-accent px-6 text-body font-semibold text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-60"
+              className={`inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full px-6 text-body font-semibold transition-colors disabled:opacity-60 ${
+                to === "Rejected"
+                  ? "bg-danger text-on-danger hover:bg-danger-hover"
+                  : "bg-accent text-on-accent hover:bg-accent-hover"
+              }`}
             >
               <CircleCheck aria-hidden className="size-4" />
               {pending ? "กำลังบันทึก…" : "ยืนยัน"}

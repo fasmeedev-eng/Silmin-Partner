@@ -233,7 +233,7 @@ export function ShopStep({ data, errors, update }: StepProps) {
               placeholder="ระบุประเภทร้าน"
             />
             {errors["shop.typeOther"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["shop.typeOther"]}
               </p>
             ) : null}
@@ -395,13 +395,13 @@ export function ShopStep({ data, errors, update }: StepProps) {
           </p>
 
           {addressGeoStatus === "not_found" ? (
-            <p role="alert" className="flex items-start gap-2 text-caption text-accent-ink">
+            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               ไม่เจอที่อยู่นี้ กรุณาปักหมุดเอง — แตะตำแหน่งบนแผนที่หรือลากหมุดไปยังตำแหน่งร้านจริง
             </p>
           ) : null}
           {geoStatus === "error" ? (
-            <p role="alert" className="flex items-start gap-2 text-caption text-accent-ink">
+            <p role="alert" className="flex items-start gap-2 text-caption text-danger-ink">
               <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
               อ่านตำแหน่งจากเครื่องไม่สำเร็จ อาจเพราะเบราว์เซอร์ไม่ได้รับอนุญาต ปักหมุดเองบนแผนที่ได้เลย
             </p>
@@ -449,7 +449,7 @@ export function ContactStep({ data, errors, update }: StepProps) {
               placeholder="ระบุตำแหน่ง"
             />
             {errors["contact.positionOther"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["contact.positionOther"]}
               </p>
             ) : null}
@@ -531,7 +531,7 @@ export function BusinessStep({ data, errors, update }: StepProps) {
               placeholder="ระบุสินค้าอื่น ๆ"
             />
             {errors["business.productOther"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["business.productOther"]}
               </p>
             ) : null}
@@ -556,7 +556,7 @@ export function BusinessStep({ data, errors, update }: StepProps) {
               placeholder="ระบุแบรนด์อื่น ๆ"
             />
             {errors["business.brandOther"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["business.brandOther"]}
               </p>
             ) : null}
@@ -603,7 +603,7 @@ export function SalesStep({ data, errors, update }: StepProps) {
               placeholder="ระบุชื่อผู้ให้บริการ เช่น A, B"
             />
             {errors["sales.installmentProviders"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["sales.installmentProviders"]}
               </p>
             ) : null}
@@ -642,7 +642,7 @@ export function InterestsStep({ data, errors, update }: StepProps) {
               placeholder="ระบุความสนใจอื่น ๆ"
             />
             {errors["interests.reasonOther"] ? (
-              <p role="alert" className="mt-2 text-fine text-accent-ink">
+              <p role="alert" className="mt-2 text-fine text-danger-ink">
                 {errors["interests.reasonOther"]}
               </p>
             ) : null}

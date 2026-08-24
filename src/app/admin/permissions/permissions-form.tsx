@@ -32,7 +32,7 @@ export function PermissionsForm({ initial }: { initial: EmployeePermissions }) {
   return (
     <div className="mt-8">
       {error ? (
-        <p role="alert" className="mb-4 rounded-md bg-pearl p-4 text-caption text-accent-ink ring-1 ring-hairline ring-inset">
+        <p role="alert" className="mb-4 rounded-md bg-danger/10 p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset">
           {error}
         </p>
       ) : null}

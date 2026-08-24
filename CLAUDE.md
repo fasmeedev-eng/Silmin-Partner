@@ -97,7 +97,7 @@ Tailwind v4 through `@tailwindcss/postcss` — there is **no `tailwind.config`**
 
 `DESIGN.md` (562 lines) is the project's design system: an Apple-style language with YAML tokens at the top and prose guidance below. Read it before building any UI. The rules that are easy to violate accidentally:
 
-- Exactly one accent hue. **The brand palette is white / `#FFE169` / black — Action Blue `#0066cc` from `DESIGN.md` is superseded and must not reappear.** See **The yellow rule** below, which is the part that is easy to get wrong.
+- Exactly one accent hue, plus one semantic danger hue. **The brand palette is white / `#FFE169` / black / `--danger` red — Action Blue `#0066cc` from `DESIGN.md` is superseded and must not reappear.** Red is not a second accent: it is reserved for error/rejection/destructive meaning only (see `--danger` family below), never used to draw attention the way yellow is. See **The yellow rule** below, which is the part that is easy to get wrong.
 - Body copy is 17px / weight 400 / line-height 1.47. Weight 500 does not exist in the ladder (300 / 400 / 600 / 700).
 - Headlines are weight 600 with negative letter-spacing.
 - Exactly one drop-shadow in the whole system, and it is only for product photography — never cards, buttons, or text. Elevation comes from surface-color change instead.
@@ -123,6 +123,10 @@ So: **yellow is a surface on white, and an ink on black.** Anything yellow on a 
 The consequence for layout is that light sections carry almost no yellow — it appears at the buttons and the icon chips, and everything else is structure. The yellow gets its full voice on the black tiles (`tone="tile"`), which is why the closing CTA is a black section: it makes the last button on the page the highest-contrast element on it.
 
 One deliberate exception to the single-hue rule is the four-color Google mark, noted above.
+
+#### The danger token
+
+`--danger` (`#dc2626`, red-600) is the fourth color, added deliberately by the user and scoped narrowly: it means "error, rejection, or a destructive action," never "look here." Unlike `#FFE169`, red-600 has enough contrast on white (~4.8:1) to serve as text directly, so it doesn't need the same fill/ink split — `--danger-ink` exists only so it can brighten to `#F87171` (red-400) on dark surfaces, where `#DC2626` alone reads too dark. `--on-danger` is white text sitting on a `--danger` fill. Current usage: field-level validation errors (`Field`/`CheckboxCard` in `form-fields.tsx`, and the matching inline errors in `steps.tsx`/`documents-step.tsx`), the Rejected status chip (`statusChipClass` in `status.ts`), the Rejected transition option/confirm buttons in `StaffPanel`, the document-delete hover state, and top-level error banners (`role="alert"` banners for a failed submit/action). It is deliberately **not** applied to the "needs action"/"overdue" yellow highlights in the back-office queue (those stay `--accent-ink` by design — see **Back office**) or to any success/confirmation banner (those keep `CircleCheck` + `--accent-ink`), since neither of those is actually an error.
 
 Two Tailwind-v4 traps that already cost a debugging round:
 

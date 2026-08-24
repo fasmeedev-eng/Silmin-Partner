@@ -150,7 +150,7 @@ export function UserRow({
         {error ? (
           <p
             role="alert"
-            className="mt-4 flex items-start gap-2 rounded-md bg-pearl p-4 text-caption text-accent-ink ring-2 ring-accent-ink ring-inset"
+            className="mt-4 flex items-start gap-2 rounded-md bg-pearl p-4 text-caption text-danger-ink ring-2 ring-danger-ink ring-inset"
           >
             <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
             {error}

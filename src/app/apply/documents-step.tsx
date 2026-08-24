@@ -120,7 +120,7 @@ export function DocumentsStep({
       {error ? (
         <p
           role="alert"
-          className="rounded-md bg-pearl p-4 text-caption text-accent-ink ring-1 ring-hairline ring-inset"
+          className="rounded-md bg-danger/10 p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset"
         >
           {error}
         </p>
@@ -182,7 +182,7 @@ export function DocumentsStep({
                       type="button"
                       onClick={() => void remove(file.id)}
                       aria-label={`ลบ ${file.fileName}`}
-                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-48 transition-colors hover:bg-parchment hover:text-ink"
+                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-48 transition-colors hover:bg-danger/10 hover:text-danger-ink"
                     >
                       <Trash2 aria-hidden className="size-4" />
                     </button>
@@ -219,7 +219,7 @@ export function DocumentsStep({
             </button>
 
             {missingRequired ? (
-              <p role="alert" className="mt-3 text-fine text-accent-ink">
+              <p role="alert" className="mt-3 text-fine text-danger-ink">
                 แนบ{category.label}อย่างน้อย 1 ไฟล์
               </p>
             ) : null}
