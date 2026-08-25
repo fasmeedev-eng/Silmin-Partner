@@ -30,6 +30,7 @@ import {
   subDistrictsOf,
   zipCodeOf,
 } from "@/lib/application/thai-address";
+import { formatAddress } from "@/lib/application/address";
 import type { ApplicationData } from "@/lib/application/schema";
 import {
   CheckboxGroup,
@@ -249,11 +250,11 @@ export function ShopStep({ data, errors, update }: StepProps) {
       ...shop.address,
       ...(found
         ? {
-            province: found.province,
-            district: found.district,
-            subDistrict: found.subDistrict,
-            postalCode: found.zip,
-          }
+          province: found.province,
+          district: found.district,
+          subDistrict: found.subDistrict,
+          postalCode: found.zip,
+        }
         : {}),
       ...(houseNumber ? { line1: houseNumber } : {}),
       ...(road ? { road } : {}),
@@ -474,6 +475,23 @@ export function ShopStep({ data, errors, update }: StepProps) {
               error={errors["shop.address.line1"]}
             />
           </Field>
+          {/* หมู่ที่/ซอย ไม่บังคับ เพราะที่อยู่ในเมืองมักไม่มีหมู่ และหลายที่ก็ไม่มีซอย
+              แต่ต้องมีช่องให้กรอก ไม่งั้นคนต่างจังหวัดจะพิมพ์ "123 ม.4" รวมลงช่องเลขที่ */}
+          <Field id="addr-moo" label="หมู่ที่" >
+            <TextInput
+              id="addr-moo"
+              value={shop.address.moo}
+              onChange={(moo) => setAddress({ moo })}
+              inputMode="numeric"
+            />
+          </Field>
+          <Field id="addr-soi" label="ซอย">
+            <TextInput
+              id="addr-soi"
+              value={shop.address.soi}
+              onChange={(soi) => setAddress({ soi })}
+            />
+          </Field>
           <Field id="addr-road" label="ถนน">
             <TextInput
               id="addr-road"
@@ -550,13 +568,30 @@ export function ShopStep({ data, errors, update }: StepProps) {
             <TextInput
               id="addr-post"
               value={shop.address.postalCode}
-              onChange={() => {}}
+              onChange={() => { }}
               readOnly
               error={errors["shop.address.postalCode"]}
               inputMode="numeric"
               className="cursor-not-allowed bg-pearl text-ink-80"
             />
           </Field>
+
+          {/* จุดสังเกตคือสิ่งที่เจ้าหน้าที่ใช้หาร้านจริง ๆ เวลาลงพื้นที่ และเป็นตัวกู้เมื่อหมุดคลาดเคลื่อน
+              กินเต็มความกว้างเพราะเป็นประโยคสั้น ๆ ไม่ใช่ค่าเดี่ยวเหมือนช่องอื่นในตารางนี้ */}
+          <div className="sm:col-span-2">
+            <Field
+              id="addr-landmark"
+              label="จุดสังเกต"
+              hint="ช่วยให้ทีมงานหาร้านเจอง่ายขึ้น เช่น ตรงข้าม 7-Eleven ข้างธนาคารกรุงไทย"
+            >
+              <TextInput
+                id="addr-landmark"
+                value={shop.address.landmark}
+                onChange={(landmark) => setAddress({ landmark })}
+                maxLength={300}
+              />
+            </Field>
+          </div>
         </div>
       </fieldset>
 
@@ -907,16 +942,7 @@ export function ReviewStep({
   editing = false,
 }: StepProps & { goToStep: (index: number) => void; editing?: boolean }) {
   const { shop, contact, business, sales, interests, consent } = data;
-  const address = [
-    shop.address.line1,
-    shop.address.road && `ถนน${shop.address.road}`,
-    shop.address.subDistrict,
-    shop.address.district,
-    shop.address.province,
-    shop.address.postalCode,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const address = formatAddress(shop.address);
 
   return (
     <div className="space-y-7">
@@ -935,6 +961,7 @@ export function ReviewStep({
           />
           <SummaryRow label="จำนวนสาขา" value={labelOf(BRANCH_COUNTS, shop.branchCount)} />
           <SummaryRow label="ที่อยู่" value={address} />
+          <SummaryRow label="จุดสังเกต" value={shop.address.landmark} />
           <SummaryRow
             label="พิกัด"
             value={shop.lat && shop.lng ? `${shop.lat}, ${shop.lng}` : "ไม่ได้ระบุ"}

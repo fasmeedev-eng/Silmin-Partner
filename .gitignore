@@ -15,6 +15,8 @@
 
 # next.js
 /.next/
+# โฟลเดอร์ build สำรองสำหรับรันเซิร์ฟเวอร์ตัวที่สอง (NEXT_DIST_DIR ใน next.config.ts)
+/.next-check/
 /out/
 
 # production

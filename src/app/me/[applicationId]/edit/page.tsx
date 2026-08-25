@@ -8,6 +8,7 @@ import { ApplyForm } from "@/app/apply/apply-form";
 import { findOwnApplication } from "@/lib/db/applications";
 import { isActivePartnerUser } from "@/lib/auth/guard";
 import { STATUS_META, editBlockedReason, isEditable } from "@/lib/application/status";
+import { draftSchema } from "@/lib/application/schema";
 
 export async function generateMetadata({
   params,
@@ -69,8 +70,12 @@ export default async function EditApplicationPage({
 
   // ความยินยอมถูกเก็บเป็นหลักฐานแยกไว้ตอนส่งครั้งแรกแล้ว (พร้อม timestamp, IP, เวอร์ชันนโยบาย)
   // ฟอร์มจึงติ๊กให้เพื่อให้ผ่านการตรวจ แต่ไม่ถามซ้ำและไม่เขียนทับหลักฐานเดิม
+  // ใบสมัครที่ส่งไว้ก่อนหน้านี้ไม่มีคีย์ของช่องที่เพิ่มมาทีหลัง (หมู่ที่/ซอย/จุดสังเกต)
+  // ต้องผ่าน draftSchema ให้เติมค่าว่างก่อนส่งเข้าฟอร์ม ไม่งั้น input ของ React จะเป็น uncontrolled
+  // แล้วสลับเป็น controlled ตอนผู้ใช้พิมพ์ — กติกาของฟอร์มนี้คือทุกช่องเป็นสตริงเสมอ ไม่มี undefined
+  const restored = draftSchema.safeParse(application.data);
   const initialData = {
-    ...application.data,
+    ...(restored.success ? restored.data : application.data),
     consent: { truthful: true, pdpa: true },
   };
 

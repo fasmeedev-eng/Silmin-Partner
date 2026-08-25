@@ -16,6 +16,7 @@ import {
   statusChipClass,
   trackIndex,
 } from "@/lib/application/status";
+import { formatAddress } from "@/lib/application/address";
 import { DOCUMENT_CATEGORIES } from "@/lib/application/categories";
 import { humanSize } from "@/lib/application/documents";
 import {
@@ -94,16 +95,7 @@ export default async function ApplicationDetailPage({
     isActivePartnerUser(session.user.id, session.user.role),
   ]);
   const current = trackIndex(status);
-  const address = [
-    data.shop.address.line1,
-    data.shop.address.road && `ถนน${data.shop.address.road}`,
-    data.shop.address.subDistrict,
-    data.shop.address.district,
-    data.shop.address.province,
-    data.shop.address.postalCode,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const address = formatAddress(data.shop.address);
 
   return (
     <>
@@ -264,6 +256,7 @@ export default async function ApplicationDetailPage({
             />
             <Row label="จำนวนสาขา" value={labelOf(BRANCH_COUNTS, data.shop.branchCount)} />
             <Row label="ที่อยู่" value={address} />
+            <Row label="จุดสังเกต" value={data.shop.address.landmark} />
             <Row
               label="พิกัด"
               value={data.shop.lat && data.shop.lng ? `${data.shop.lat}, ${data.shop.lng}` : "ไม่ได้ระบุ"}

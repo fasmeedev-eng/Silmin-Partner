@@ -162,6 +162,20 @@ export async function listUsers(): Promise<UserSummary[]> {
   }));
 }
 
+/**
+ * _id ของเจ้าหน้าที่ที่ยังใช้งานอยู่ทุกคน — ใช้กระจายการแจ้งเตือนใบสมัครใหม่
+ *
+ * เอาเฉพาะ active: true เพราะคนที่ถูกปิดบัญชีเข้าระบบไม่ได้อยู่แล้ว
+ * การสร้างแถวแจ้งเตือนให้เขาคือขยะที่ไม่มีวันถูกอ่าน
+ */
+export async function listActiveStaffIds(): Promise<string[]> {
+  const users = await usersCollection();
+  const docs = await users
+    .find({ role: { $in: ["admin", "employee"] }, active: { $ne: false } }, { projection: { _id: 1 } })
+    .toArray();
+  return docs.map((doc) => doc._id.toString());
+}
+
 export async function countActiveAdmins(): Promise<number> {
   const users = await usersCollection();
   return users.countDocuments({ role: "admin", active: true });

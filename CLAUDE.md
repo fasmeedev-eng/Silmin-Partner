@@ -13,6 +13,14 @@ npm run lint     # eslint (next/core-web-vitals + next/typescript)
 
 No test runner is configured yet — there is no `test` script, no test framework in `package.json`, and no test files. If tests are introduced, add the runner and document how to run a single test here.
 
+**Never run `npm run build` while a dev server is up.** Both write `.next`, and the build corrupts it out from under the running server — every route then answers 500 until `.next` is deleted and dev restarted. This has already happened once. To run a second server (to check a page while the first stays up), point it at a different build directory:
+
+```bash
+NEXT_DIST_DIR=.next-check npx next dev -p 3001
+```
+
+`next.config.ts` reads that variable and defaults to `.next`, so ordinary use is unaffected.
+
 ## What this project is
 
 A **Partner application system for mobile-phone retailers**, entered by scanning a QR code. It is not a generic CRUD app; the product requirements define a lead-to-partner pipeline with three distinct surfaces:
@@ -95,39 +103,26 @@ Upload validation (JPG/PNG/PDF, size and count caps) has to be enforced server-s
 
 Tailwind v4 through `@tailwindcss/postcss` — there is **no `tailwind.config`**; theme tokens are declared CSS-first in `@theme inline` inside `src/app/globals.css`.
 
-`DESIGN.md` (562 lines) is the project's design system: an Apple-style language with YAML tokens at the top and prose guidance below. Read it before building any UI. The rules that are easy to violate accidentally:
+**`DESIGN.md` is the design system and it now documents what actually ships** — the four-colour SG Partner language (white ground / `#0A0A0A` structure / `#FFD84D` gold highlight / `#EF2027` red action), with YAML tokens mirroring `globals.css` at the top and prose guidance below. **Read it before building any UI.** It was rewritten from the earlier Apple/Action-Blue analysis, which described a system this project never shipped; the design detector reads it, so `DESIGN.md` and `globals.css` must be changed together or the detector starts reporting drift that is not real.
 
-- **The app surfaces** (`/apply`, `/me`, `/admin`, `/partner`) use exactly one accent hue plus one semantic danger hue: white / `#FFE169` / black / `--danger` red. Action Blue `#0066cc` from `DESIGN.md` is superseded and must not reappear. Inside those surfaces red is not a second accent — it is reserved for error/rejection/destructive meaning only (see `--danger` family below), never used to draw attention the way yellow is. See **The yellow rule** below, which is the part that is easy to get wrong.
-- **The landing page and the site header** run on a separate red/gold brand palette — see **The landing brand palette** below. This is a deliberate later decision by the user from a reference comp, not drift, and it is the reason `--brand` exists alongside `--danger`.
-- Body copy is 17px / weight 400 / line-height 1.47. Weight 500 does not exist in the ladder (300 / 400 / 600 / 700).
-- Headlines are weight 600 with negative letter-spacing.
-- Exactly one drop-shadow in the whole system, and it is only for product photography — never cards, buttons, or text. Elevation comes from surface-color change instead.
-- No decorative gradients. Radii come from the scale only (`sm` 8 / `md` 11 / `lg` 18 / pill).
-- Touch targets ≥ 44px — the application form is used on phones in shops.
-- One deliberate exception to the single-accent rule: the official four-color Google "G" in `src/components/auth/google-mark.tsx`. It is a trademark users must recognise, not UI color.
+The notes below cover what the sections of this file add on top of it. The rules that are easy to violate accidentally:
 
-`src/app/globals.css` now implements the system: `DESIGN.md` colors are declared as CSS variables on `:root` (with `prefers-color-scheme` and `[data-theme]` overrides for the dark palette), and `@theme inline` maps them onto Tailwind utilities — `bg-parchment`, `text-ink-48`, `text-body`, `rounded-lg`, and so on. The single permitted drop-shadow lives in one class, `.product-shadow`.
+- **Four colours, unequal amounts** — white ground, `#0A0A0A` structure, `#FFD84D` gold highlight, `#EF2027` red action, plus `--danger` red for errors. The ratio is the design; spreading red and gold evenly is what turns it into a discount flyer. Action Blue `#0066cc` and the old yellow `#FFE169` accent are both superseded and must not reappear.
+- Body copy is 17px / weight 400 / **line-height 1.62**. Weight **500 exists** and is the navigation-link weight only.
+- Headlines are weight 700 (display, h2) or 600 (h3), with **letter-spacing 0** — never negative.
+- Elevation is the `shadow-soft` → `shadow-lift` family (wide and faint), plus `shadow-device` for the phone mockup. `.product-shadow` is the legacy single shadow and now applies to product imagery only.
+- Radii: `btn` 14 / `input` 12 / `card` 24 / `phone` 44 for landing-language UI; `sm` 8 / `md` 11 / `lg` 18 is the legacy scale.
+- No decorative gradients. The two that exist (the "SG" wordmark, the phone bezel) are structural and documented in `DESIGN.md`.
+- Touch targets ≥ 44px, and 52–56px for anything used on a phone in a shop.
+- One deliberate exception to the palette: the official four-colour Google "G" in `src/components/auth/google-mark.tsx`. It is a trademark users must recognise, not UI colour — and for the same reason the Google sign-in button is never tinted with the brand red.
 
-#### The yellow rule
-
-`#FFE169` is a very light yellow: against white it measures about **1.3:1**, so it is invisible as text, as an icon stroke, or as a hairline on any light surface. It is not a drop-in replacement for the blue it succeeded. The palette therefore splits the one hue into two tokens by role:
-
-| Token | Value (light) | Use |
-|---|---|---|
-| `--accent` | `#FFE169` | **Fills only** on light surfaces — button backgrounds, icon chips. On dark surfaces it is also the text/icon color. |
-| `--accent-ink` | `#8A6A00` | Text, icons, and thin marks that need to read as "accent" on a light surface (5.1:1 on white). Becomes `#FFE169` in dark theme. |
-| `--on-accent` | `#16150F` | Text sitting on an `--accent` fill. |
-| `--accent-hover` | `#FFD633` | Hover state of an `--accent` fill. Do not use `--accent-focus` for this — it is the dark amber focus ring. |
-
-So: **yellow is a surface on white, and an ink on black.** Anything yellow on a light background must be a filled shape big enough to read as one. A yellow check mark, underline, or 2px rule on white is a bug, not a style choice.
-
-The consequence for layout is that light sections carry almost no yellow — it appears at the buttons and the icon chips, and everything else is structure. The yellow gets its full voice on the black tiles (`tone="tile"`), which is why the closing CTA is a black section: it makes the last button on the page the highest-contrast element on it.
-
-One deliberate exception to the single-hue rule is the four-color Google mark, noted above.
+`src/app/globals.css` is the implementation of `DESIGN.md`: its colours are declared as CSS variables on `:root` (with `prefers-color-scheme` and `[data-theme]` overrides for the dark palette), and `@theme inline` maps them onto Tailwind utilities — `bg-brand`, `text-ink-48`, `text-body`, `rounded-card`, `shadow-soft`, and so on. `.surface-tint` is the warm page ground that makes white cards read as a separate plane.
 
 #### The landing brand palette
 
-The landing page and `SiteHeader` run on a red/gold palette that the rest of the app does not. The four brand colours are white, `#0A0A0A`, yellow `#FFD84D`, red `#EF2027`, specified by the user. **They are deliberately not used in equal amounts**: white is the ground, black is nav and type, yellow is highlight, red is *only* the primary action and the active state. Spreading red and yellow evenly is what turns this into a discount-flyer, and is the single easiest way to wreck it.
+**The product is branded "SG Partner".** It was renamed from "Silmin" partway through; the wordmark is now the logo mark (`src/components/brand/sg-mark.png`, a transparent PNG, also copied to `src/app/icon.png` as the favicon) plus the text lockup in `BrandLogo` (`src/components/brand/brand-logo.tsx`), used by `SiteHeader`, `SiteFooter`, `AdminSidebar`, and the login screens. **The `silmin.co.th` email and domain were deliberately left alone** — renaming them would invent contact details that may not exist, and the Nominatim/Overpass `User-Agent` strings must stay reachable by policy. Change those only when the real domain is known.
+
+The landing page and `SiteHeader` run on a red/gold palette. The four brand colours are white, `#0A0A0A`, yellow `#FFD84D`, red `#EF2027`, specified by the user. **They are deliberately not used in equal amounts**: white is the ground, black is nav and type, yellow is highlight, red is *only* the primary action and the active state. Spreading red and yellow evenly is what turns this into a discount-flyer, and is the single easiest way to wreck it.
 
 | Token | Light | Use |
 |---|---|---|
@@ -137,19 +132,37 @@ The landing page and `SiteHeader` run on a red/gold palette that the rest of the
 | `--brand-soft` | `#FEF0F0` | Tinted badge background |
 | `--on-brand` | `#FFFFFF` | Text on a `--brand` fill |
 | `--gold` | `#FFD84D` | Gold **fills** only — the two yellow icon chips in the feature strip |
-| `--gold-deep` | `#D99000` | The gold end of the "Silmin" wordmark gradient |
+| `--gold-deep` | `#D99000` | The gold end of the "SG" wordmark gradient |
 | `--gold-ink` | `#8A6A00` | Gold as small text on a light surface |
 
 Contrast is the constraint that shapes most of these:
 
 - `#EF2027` on white is ~3.6:1 — fine for large text, **fails for caption-sized text**. Small red text must use `--brand-ink` (~4.9:1). This is why there are two reds.
-- `#FFD84D` on white is ~1.5:1 — invisible as text. Gold is a fill, full stop. The "Silmin" wordmark is a `--gold-deep → --brand` gradient precisely so both ends clear 3:1; a flat `--gold` wordmark is a bug.
+- `#FFD84D` on white is ~1.5:1 — invisible as text. Gold is a fill, full stop. The "SG" wordmark in the H1 is a `--gold-deep → --brand` gradient precisely so both ends clear 3:1; a flat `--gold` wordmark is a bug.
 - White on `#FFD84D` is ~1.5:1, white on `#EF2027` is ~4.5:1. That is why the gold icon chips carry black glyphs while the red ones carry white. The asymmetry is the colours, not an oversight.
 
 Other rules that are easy to get wrong here:
 
 - **`--brand` and `--danger` are different meanings that happen to share a hue.** `--brand` means "press this"; `--danger` means "this failed / this deletes something". Never substitute one for the other — a delete button and a sign-up button must not look identical, even on different pages. This is why red was added as a new token family rather than by widening `--danger`'s remit.
-- **The red covers every applicant-facing surface: landing page, header, footer, `/apply`, `/apply/success`, `/me`, `/me/[id]`, `/me/[id]/edit`, and `/partner/calculator`.** Only `/admin` still runs on yellow `--accent`. Recoloring the back office is a separate decision the user has not made; do not "finish the job" unasked.
+- **Every surface now runs on this palette** — landing, header, footer, `/apply`, `/apply/success`, `/login` and the login dialog, `/me/*`, `/partner/calculator`, and all of `/admin`. `--accent` (the old yellow) survives only as the token `--gold` aliases and in `focus-visible:outline-accent` on the admin sidebar; no page composes with it any more.
+
+#### The back office splits red and black differently from the front
+
+`/admin` is a tool someone stares at all day, and two of its actions are irreversible (rejecting a shop, revoking a role). So red is rationed harder there than on the landing page:
+
+| Element | Treatment | Why |
+|---|---|---|
+| Sidebar item, current page | `bg-brand` | Small pill; matches the front-end's "active = red" |
+| Work-bucket card, selected | `bg-nav` (black) | Four large cards; a red one would dominate the screen all day |
+| Status option card, selected | `bg-nav`, **except `Rejected` → `bg-danger`** | See below |
+| "ดำเนินการ" / "ยืนยัน" | `bg-nav`, **except `Rejected` → `bg-danger`** | See below |
+| Role-change confirm | `bg-nav` | Consistent with the above |
+| Deactivate account | danger on hover only | Documented earlier; unchanged |
+| Overdue / incomplete-documents flags | `--gold-ink` | Not errors — the pre-existing decision, preserved |
+
+**The Rejected exception is the whole point.** `--brand` and `--danger` are visually indistinguishable, so if the ordinary confirm button were also red, `isDangerStatus()` would still branch in the code but the staff member would see no difference — and the one button that emails a shop "you did not pass" would look exactly like the one that just advances a status. Black for the ordinary path is what keeps that warning real. Do not "unify" these to red.
+
+**`max-w-` was missing on four admin/queue `<main>` elements** (`admin/page.tsx`, `admin/[applicationId]`, `admin/users`, `admin/permissions`) — the class read `mx-auto w-full  px-6`, with the width silently absent. Content stretched edge-to-edge on wide monitors and the queue rows became unscannable. All four are now `max-w-[1180px]`; check for this when adding a new admin page.
 
 **Status chips carry meaning through colour, and the mapping is deliberate** (`statusChipClass` in `status.ts`): **gold** = the ball is in the applicant's court (`Draft`, `NeedMoreInfo`); **black** = settled and good (`Approved`, `ActivePartner`); **danger red** = `Rejected`; **grey** = in progress, nothing to do. Brand red never appears on a chip — a chip is not something you press, and reserving red for buttons and errors is what keeps both legible. Text on the gold chip must stay near-black (white on `#FFD84D` is ~1.5:1).
 
@@ -168,6 +181,8 @@ Other rules that are easy to get wrong here:
 The rule to preserve: **a red ring anywhere in a form means the value is wrong.** Brand red survives as the filled dot/tick, the progress bar, the step icon, the required asterisk, and the buttons — all shapes that cannot be mistaken for a field outline. Do not "brand" the focus or selected ring back to red; it silently destroys the only error signal the form has.
 
 The form itself is a white `rounded-card` with `shadow-soft` floating on `surface-tint`, container `860px` (narrower than the landing 1280 — a single column of fields does not want a wide measure).
+
+**The Google sign-in button is never tinted with the brand red.** White fill, dark label, the four-colour "G" — that is Google's own guidance, and a red-washed version makes people hesitate about where the button leads. It gets its prominence from size, shadow, and being the only button in the dialog. Same rule on `/login` and in `LoginDialogProvider`, which deliberately share one layout and one set of reasons: a person bounced there by middleware is answering the same question as someone who clicked from the landing page.
 
 **Progress is a stepper, not a bar** (`src/app/apply/form-stepper.tsx`). A bar only answers "how far along"; the stepper also answers "what is left and what did I already pass", which is what matters in a seven-step form. Rules baked into it:
 
@@ -193,11 +208,11 @@ The colours inside `phone-mockup.tsx` (`#0a0a0c`, `#131317`, `#3d3d44`) and its 
 
 #### The danger token
 
-`--danger` (`#dc2626`, red-600) is the fourth color, added deliberately by the user and scoped narrowly: it means "error, rejection, or a destructive action," never "look here." Unlike `#FFE169`, red-600 has enough contrast on white (~4.8:1) to serve as text directly, so it doesn't need the same fill/ink split — `--danger-ink` exists only so it can brighten to `#F87171` (red-400) on dark surfaces, where `#DC2626` alone reads too dark. `--on-danger` is white text sitting on a `--danger` fill, and `--danger-focus` (same value as `--danger-ink`) is the focus-visible outline color for controls already in a danger state — never the default `:focus-visible` color, which stays `--accent-focus`.
+`--danger` (`#dc2626`, red-600) is the fourth color, added deliberately by the user and scoped narrowly: it means "error, rejection, or a destructive action," never "look here." Unlike gold, red-600 has enough contrast on white (~4.8:1) to serve as text directly, so it doesn't need the same fill/ink split — `--danger-ink` exists only so it can brighten to `#F87171` (red-400) on dark surfaces, where `#DC2626` alone reads too dark. `--on-danger` is white text sitting on a `--danger` fill, and `--danger-focus` (same value as `--danger-ink`) is the focus-visible outline color for controls already in a danger state — never the default `:focus-visible` color, which is now the ink ring on form fields.
 
 **Whether a *status* (not just a validation error) gets the danger treatment is decided in exactly one place**: `StatusMeta.dangerStyled` in `status.ts`, read through `isDangerStatus()`. Today only `Rejected` is `true`. Every consumer — `statusChipClass`, the three status-driven boxes on `/me/[applicationId]` (`statusMessage`, the track-stage note, `editBlockedReason`), and the three Rejected-branch spots in `StaffPanel` (the option card, "ดำเนินการ", the confirm dialog's "ยืนยัน") — calls `isDangerStatus()` rather than comparing `=== "Rejected"` directly, so adding a second danger-styled status later is a one-line change to `STATUS_META`, not a grep-and-replace across files.
 
-Current usage: field-level validation errors (`Field`/`ConsentCheckbox`/`TextInput`/`SelectInput` in `form-fields.tsx`, and the matching inline errors and invalid-rings in `steps.tsx`/`documents-step.tsx`), everything gated by `isDangerStatus()` as described above, the document-delete hover state, the deactivate-account hover state in `/admin/users`, and top-level error banners (`role="alert"` banners for a failed submit/action). It is deliberately **not** applied to the "needs action"/"overdue" yellow highlights in the back-office queue (those stay `--accent-ink` by design — see **Back office**) or to any success/confirmation banner (those keep `CircleCheck` + `--accent-ink`), since neither of those is actually an error.
+Current usage: field-level validation errors (`Field`/`ConsentCheckbox`/`TextInput`/`SelectInput` in `form-fields.tsx`, and the matching inline errors and invalid-rings in `steps.tsx`/`documents-step.tsx`), everything gated by `isDangerStatus()` as described above, the document-delete hover state, the deactivate-account hover state in `/admin/users`, and top-level error banners (`role="alert"` banners for a failed submit/action). It is deliberately **not** applied to the "needs action"/"overdue" gold highlights in the back-office queue (those stay `--gold-ink` by design — see **Back office**) or to any success/confirmation banner (those keep `CircleCheck` + `--brand`), since neither of those is actually an error.
 
 Three Tailwind-v4 traps that already cost a debugging round:
 
@@ -264,13 +279,13 @@ Not built yet: staff cannot request changes through `NeedMoreInfo` — that stat
 
 ## Thai typography
 
-The product ships in Thai, and `DESIGN.md` was derived from an English, SF Pro–based system — its display rules do not transfer directly:
+The product ships in Thai. These three rules are now baked into `DESIGN.md` and into the type ramp in `globals.css`, but they are worth restating because every one of them is easy to undo by copying a snippet from an English design system:
 
-- SF Pro and Inter have no Thai coverage. Use **IBM Plex Sans Thai** or **Noto Sans Thai** (weights 400/600) for Thai text; keep the `DESIGN.md` stack for Latin and numerals.
-- **Do not apply negative letter-spacing to Thai.** Use `0`. The tight tracking in `DESIGN.md` is Latin-only.
-- Thai stacks vowels above and tone marks below the baseline, so line-height must be **≥ 1.6** — the 1.07–1.47 values in `DESIGN.md` collide glyphs and read as low quality.
+- SF Pro and Inter have no Thai coverage. **IBM Plex Sans Thai** (400/500/600/700) carries Thai; the Latin stack in front of it handles Latin and numerals.
+- **Never apply negative letter-spacing.** Use `0` everywhere, display sizes included. Thai stacks vowels above and tone marks below the baseline, and tight tracking collides them.
+- **Body line-height stays ≥ 1.6** for the same reason. Display sizes may go to 1.28–1.45 because the glyphs are large enough to survive it.
 
-Everything else in `DESIGN.md` (single accent, spacing rhythm, one shadow, no gradients) applies unchanged. Credibility on the public form comes as much from structure as from styling: visible step progress, an explanation of why each block of data is asked for, an explicit note that no bank details are requested in phase 1, a readable review step, and error messages that say how to fix the problem.
+Credibility on the public form comes as much from structure as from styling: visible step progress, an explanation of why each block of data is asked for, an explicit note that no bank details are requested in phase 1, a readable review step, and error messages that say how to fix the problem.
 
 ## The application form
 
@@ -328,22 +343,31 @@ Public Overpass mirrors (kumi.systems, private.coffee, osm.jp) were tested and a
 
 `/admin` is the staff queue. **There is no assignment** — every `employee` and `admin` sees every application. The difference between the two roles is what they may *do*, never what they may *see*, so no query under `/admin` filters by who is looking; the `salesOwnerId` field from the original schema sketch was dropped.
 
-`listAllApplications` takes status, province, ครบ/ไม่ครบ, a free-text term, sort and page. Two details that matter:
+`listAllApplications` takes status, province, shop type, a submitted-date range, ครบ/ไม่ครบ, a free-text term, sort, page and page size. Three details that matter:
 
 - The ครบ/ไม่ครบ filter is built from `REQUIRED_CATEGORIES`, not hard-coded, so it cannot drift from what the form enforces.
 - Free text searches applicationId, shop name, contact name, and — separately — the phone with non-digits stripped, because the database stores `0812345678` while people type `081-234-5678`. The term is regex-escaped first.
+- The date range filters on **`submittedAt`, never `updatedAt`** — the question is "what came in this month", and filtering on `updatedAt` would drag old applications a staff member merely touched into the middle of the new ones.
 
 **The back office is designed for staff who are not comfortable with computers.** That constraint drives most of its layout decisions, and undoing them to "clean up the UI" would undo the point:
 
-- The queue leads with a sentence, not a table header: *"มี 3 ใบรอคุณตรวจ"*. The first thing on screen answers what to do, not what exists.
-- The seven statuses collapse into **three work buckets** (`WORK_BUCKETS` in `status.ts`) shown as large count cards. Seven chips force the reader to translate each one; three buckets answer "which pile is today's work" at a glance. Individual statuses still show on each row.
-- Rows lead with the **shop name**, not the Application ID. People remember shops; nobody remembers `SG-2026-000004`.
-- Age is written out (*"รอมา 5 วัน"*) rather than left as a date to subtract from today, and turns yellow past three days on a `New` application.
-- The list is one card per row rather than a spreadsheet grid — a table reads as data to study, a list reads as work to do.
-- Only the search box is visible by default; province, document and sort filters sit inside a collapsed `<details>`, because they are used rarely and every visible control costs attention daily.
+- Five count cards sit above the queue: a black **ทั้งหมด** card plus the four `KPI_BUCKETS`. They are filter buttons, not decoration — clicking one filters the table below and gets an ink ring, and clicking it again clears the filter. The selected card is ringed rather than filled red, because five large cards in a row would out-shout the one red action button if any of them were solid red.
+- The same four buckets appear again as **underlined tabs** directly above the table. They are underlines rather than a second row of pills specifically because the cards above are already pills: two pill rows answering the same question would read as two separate controls.
+- Rows lead with the Application ID, but the **shop name is the visually dominant element** — bold, next to a black initials avatar, with the contact name and phone under it. People remember shops; nobody remembers `SG-2026-000004`, so the ID is there to be copied, not to be scanned.
+- Age is written out (*"รอมา 5 วัน"*) rather than left as a date to subtract from today, and turns gold past three days on a `New` application.
+- **ความคืบหน้า is `trackIndex()` + 1 out of `STATUS_TRACK.length`**, the same five-stage track the applicant sees on `/me/[id]`. It is not a second progress model — a rejected application reads 2/5 because `trackIndex` parks it at the review stage, which is exactly where it stopped.
+- **The status chip and the progress bar in a row always agree in colour**, because `statusBarClass` and `statusChipClass` read the same `STATUS_META` flags. They sit two columns apart; if they used different palettes the reader would assume they meant different things.
+- The search box and the province / shop-type selects are one `<form>`; ตัวกรอง and Enter both submit it. Document and sort filters stay inside a collapsed `<details>` — they are used rarely and every visible control costs attention daily.
+- **Every link on the page preserves the whole filter set** (`hrefWith` in `page.tsx`). Tabs, page numbers, page size, date range and the export link all round-trip `tab`, `range`, `type`, `province`, `documents`, `q` and `sort`. A tab that silently drops the province you just picked is worse than no tab.
 - On the detail page, **the action comes before the data**: contact card, then "ขั้นตอนถัดไป", then documents, then the submitted fields in collapsed blocks. The job is calling the shop and deciding, not reading a record top to bottom.
 - Each status option is a full-width card carrying a plain-language sentence about what choosing it *does*, not a chip with the status name.
 - Status changes and role changes both go through a **confirmation dialog that repeats the outcome** — which shop, which new status, and the exact message the applicant will see. Users who are afraid of clicking the wrong thing need to see the consequence before committing, and it is the cheapest defence against a mis-click that emails a shop.
+
+**The queue has no select-all checkbox and no bulk actions**, though the reference design showed both. Nothing in the system acts on many applications at once, and status change in particular must not: `requiresMessage()` marks `NeedMoreInfo` and `Rejected` as needing a per-application message to the shop, so a bulk version would either send the same sentence to twenty different shops or skip the message entirely. A checkbox with nothing behind it is worse than no checkbox.
+
+**"+ ใบสมัครใหม่" from the reference became "ตรวจใบถัดไป"**, which opens the oldest un-reviewed application (`findOldestPending`). Staff do not create applications — shops submit them — so a create button would have nowhere to go. When nothing is pending the button becomes a muted "ไม่มีใบรอตรวจ" label rather than a dead red button.
+
+The sidebar's คิวใบสมัคร item carries the live `New` count, fetched in the admin layout and passed down (the sidebar is a client component). It is hidden at zero: a badge reading "0" costs a glance and says nothing.
 
 The default sort is "รอนานที่สุดก่อน" for the same reason — an application nobody opened for a week is a shop that has already given up.
 
@@ -355,9 +379,62 @@ The message to the applicant is stored as `statusMessage` on the application its
 
 `/admin/[applicationId]` shows the whole application, the consent evidence, the documents, and a `StaffPanel` that offers **only the transitions `ALLOWED_TRANSITIONS` permits from the current status** — the UI never lets someone pick a move that will then be rejected. `changeStatus` still re-checks the rule and puts the current status in the `updateOne` filter, so two staff opening the same application cannot overwrite each other's decision without noticing.
 
+### The application detail page
+
+The page follows a reference comp (a generic admin-template screenshot) closely for layout and chrome, but two of that comp's features describe things this system does not have, and were deliberately not reproduced rather than faked:
+
+- **No "ผู้ดูแลใบสมัคร" (assigned owner) field.** The back office has no assignment — every `employee` and `admin` sees every application (see **Back office** above). The comp's "assigned staff" row is replaced with **ผู้ทำรายการล่าสุด**, sourced from the first `activity` that carries an `actorLabel` (only staff-authored activities set one; the applicant's own `submitted`/`edited`/`document_*` entries don't). This is real audit data already sitting in the `activities` collection, just never surfaced here before.
+- **No "แก้ไข" links on the shop/contact/business summary cards.** Staff cannot edit an applicant's submitted data — only the applicant can, and only while status is `New` (see **Editing after submission**). An edit link that opens nothing is worse than no link.
+- **No per-file "verified" checkmarks and no "ดาวน์โหลดทั้งหมด" button** on the documents list. The system has no per-document review state (only whole-application `documentsComplete()`) and no zip-export endpoint. Both would need new data or a new endpoint to back them honestly; the list instead shows real file metadata with a real per-file open link, plus a plain count.
+- **The five-step "ขั้นตอนการสมัคร" checklist is not a second, more-granular pipeline.** The comp's mock has stages like "ตรวจสอบความน่าเชื่อถือ" and "สร้างบัญชีพาร์ทเนอร์" that don't exist as statuses in this system. The checklist instead re-renders the same `STATUS_TRACK` + `STATUS_META[...].detail` used everywhere else (`ProgressTracker`, `/me/[id]`), so it can never drift out of sync with the actual status model — it's the existing five stages with fuller descriptions, not a new source of truth.
+
+Two components carry real, previously-unsurfaced data onto this page:
+
+- **`StatusMessageCard`** shows `application.statusMessage` — the note last sent to the applicant — which `/me/[id]` already displayed but the staff-facing detail page never did. A staff member picking up a case a colleague already touched needs to see what the shop was told, so they don't contradict it on a call.
+- **`ProgressTracker`** is the same `STATUS_TRACK`/`trackIndex()` five-stage stepper `/me/[id]` shows the applicant, **recolored for the back office**: `/me` fills the current stage with brand red (its rule: red = highlight), but a stepper here follows the back-office rule of rationing red instead — the current stage uses `statusBarClass(status)` (gold when the ball is in the shop's court, black once approved, danger red only if rejected, gray while ordinarily in progress), the exact same function the queue table's progress bar already uses. Completed stages are always ink/black regardless of status, since "already passed" is a settled fact, not a live status. `statusOnBarClass()` (in `status.ts`) picks the matching text color for whatever `statusBarClass` returns, since gold needs dark text and everything else needs white — one function, so the two decisions can't drift apart.
+
+**The full option-card `StaffPanel` was kept in its existing position and form (right after the contact card), not replaced by the comp's inline quick-buttons.** That placement and shape — full-width cards with a plain-language sentence, the message field only required where `requiresMessage()` says so, and a confirm dialog that repeats the outcome — is explicit, deliberate, and already documented above; rebuilding it as a second, thinner action surface would either duplicate the safety checks or bypass them. The header's small **"ดำเนินการ"** button (shown only when `canChangeStatus` and `ALLOWED_TRANSITIONS[status]` is non-empty) is a plain anchor link to `#next-steps` — no new state, no new dialog, just a jump to the one real flow.
+
 Server actions in `src/app/admin/actions.ts` call `guardRole` themselves. The layout guard is not enough: a server action can be invoked directly without ever loading the page it belongs to.
 
 **Document access.** `/api/documents/[id]` now has two paths. Owners read their own files with no log entry — looking at your own document is not an event. Staff (`admin`/`employee`) read any file, and **every staff read is written to the `documentAccess` collection** with who, which file, which application, and when. It is a separate collection from `activities` on purpose: this is a security trail, not part of the application's story, and its volume is different by an order of magnitude. Reads are de-duplicated per staff+file for 10 minutes, because one glance at a photo hits the proxy several times and an un-throttled log buries the entries that matter.
+
+### The dashboard
+
+`/admin/dashboard` is the overview screen; **`/admin` stays the queue.** That split is deliberate. `/after-login`, the header's "หลังบ้าน" link and every notification `href` point at `/admin`, and the queue is what a staff member should land on — it leads with *"มี N ใบรอคุณตรวจ"*, which is the job. A dashboard answers "how are we doing", which is a different question and a rarer one. Making the dashboard the landing page would undo that decision, not just move a route.
+
+Every number on it is read from the database. There is no seeded, sampled or estimated figure anywhere, and there must never be — a dashboard is a screen people believe without checking, so one invented number poisons the rest.
+
+`src/lib/db/dashboard.ts` pulls the whole page in **one `$facet` aggregation**: counts by status, counts by shop type, the daily series, the two trend windows, the oldest waiting application, and the stalled `NeedMoreInfo` count. Seven separate queries per page load was the alternative.
+
+Things in it that look arbitrary but are not:
+
+- **Days are cut in `Asia/Bangkok`, via `$dateToString`'s `timezone`.** Cutting on UTC moves anything submitted after 7pm into the next day, and the chart then disagrees with the timestamps in the table right below it.
+- **`anchorAt` = `statusChangedAt ?? submittedAt`** is what the trend measures — "when did this application arrive in the state it is in now". `submittedAt` alone would report an application rejected yesterday as activity from the week it was filed.
+- **The comparison window is fixed at 7 days**, not tied to the chart's range selector. "จากสัปดาห์ก่อน" is a phrase everyone reads the same way; "จาก 90 วันก่อน" is not.
+- **`Trend.percent` is `null` when the previous window is zero**, and the card then says "เพิ่มขึ้น 3 ใบ" instead of a percentage. This is the common case, not an edge case: real volume is single digits per week, and "+300%" off a base of one application is noise dressed up as a statistic.
+- **`KPI_BUCKETS` (in `status.ts`) partitions all seven statuses** — no overlap, nothing left out — because the four ring gauges show each bucket's share of the total, and shares that do not add to 100% make the whole strip untrustworthy. The queue uses the same four buckets for its cards and tabs, deliberately: an earlier `WORK_BUCKETS` grouped the same seven statuses a second way (รอคุณตรวจ / กำลังดำเนินการ / จบแล้ว) and was removed, because clicking a card on one page and landing on a different total on the other reads as a bug even when both numbers are right.
+- The two chart series are **`submittedAt` per day (red, งานเข้า)** and **`statusChangedAt` per day (gold, งานที่ทำไป)**. The gap between them is the only thing the chart exists to show: red above gold for several days running means work is piling up.
+- Clicking a KPI card filters the **table on the same page** rather than jumping to the queue. The dashboard is where someone is reading numbers; making them lose the page to check one of them is the wrong trade. The queue's own cards do the same thing to its own table.
+- The gold notice strip under the KPI row renders **only when there is something to act on** (oldest waiting ≥ 3 days, or `NeedMoreInfo` stalled past a week). A banner that is always present becomes invisible within a week.
+
+**Everything on the page does something.** "ดาวน์โหลดรายงาน" is a real CSV export at `/admin/export`; the search box submits to the queue's real search; the range chip re-renders the chart. A control that looks live and is not is worse than no control, because the person who presses it will believe it worked.
+
+`/admin/export` is reachable from both the dashboard and the queue's ส่งออกข้อมูล menu, and **accepts the queue's own filter params** so "ตามตัวกรองที่เลือกอยู่" produces a file matching what is on screen — if the two disagreed, someone would take the wrong file into a meeting without noticing. It streams CSV with a **UTF-8 BOM** (without it Excel on Windows reads the Thai as mojibake) and prefixes any cell starting with `=` `+` `-` `@` with an apostrophe, since those cells hold shop names typed by applicants and Excel would otherwise evaluate them as formulas.
+
+**Charts are hand-written SVG in server components** — no chart library, no client JS. The curve is monotone cubic (Fritsch–Carlson), not a plain cardinal spline: a cardinal spline overshoots, so a day with zero applications dips the line below the axis, which is a picture of an impossible number.
+
+Three sizing rules that were measured, not guessed, and that break silently if changed:
+
+- An SVG with a `viewBox` scales its **text** along with everything else. The chart's `viewBox` is therefore kept close to its real rendered width, capped at `max-w-[720px]`, with a `min-w-[420px]` floor inside an `overflow-x-auto` wrapper so narrow screens scroll the card instead of shrinking the labels to 6px. That floor must stay **below** the card's real inner width at `2xl` (~429px), or wide screens grow a pointless scrollbar.
+- The three middle cards go three-across at **`2xl` (1536), not `xl`**. The sidebar takes 256px, so at 1280–1440 — where most laptops sit — a third of the remaining width leaves the chart around 390px and the axis unreadable. Below `2xl` the chart spans the full row and the donut and notifications sit side by side.
+- All three of those cards carry **`min-w-0`**. Grid children default to `min-width: auto` and refuse to shrink below their content, so without it the chart's scroll container pushes the *page* sideways instead of scrolling itself (measured: 197px of page overflow at 390px wide).
+
+The donut's legend sits **below** the ring, not beside it as in the reference comp: Thai category names ("ร้านมือถือและอุปกรณ์เสริม") do not fit next to a ring in a 380px card without truncation, and a truncated category name does not identify a category. Its slice colours follow the order of `SHOP_TYPES`, never the order of the counts, so "ร้านมือถือ" is the same colour every day.
+
+**The reference design used blue and green; this does not.** The palette is four colours (`DESIGN.md`), so the donut runs a red → gold → black → grey ramp and the "ระบบออนไลน์" dot is gold. Trend arrows colour by *good or bad*, not up or down — more rejections is bad news even though the arrow points up — and "good" is plain ink, since there is no green to spend.
+
+`AdminTopbar` renders in the layout, so it is on every `/admin` page. It is a server component: the account menu is a `<details>`, not client state, because the sign-out button inside it is a server action and a client component cannot create one. Its "ข้อมูล ณ HH:MM น." is the render time and it earns its place — this screen is left open all day, and that clock is the only thing telling the reader how stale the numbers are.
 
 ### Roles and permissions in the UI
 
@@ -384,6 +461,18 @@ Guard rails on role changes, all enforced in `changeRoleAction`/`toggleActiveAct
 `scripts/set-role.mjs` stays regardless — it is the only way back in if every admin is locked out.
 
 **Pure-data modules exist because of the client bundle, not for tidiness.** `src/lib/auth/roles.ts` (role values and Thai labels) and `src/lib/auth/permission-defs.ts` (permission list) import nothing at all. `guard.ts` imports `@/auth` and `permissions.ts` imports `getDb`, so a client component importing either would drag the MongoDB driver into the browser and fail with `Can't resolve 'child_process'`. This has now happened twice; check the import chain of every `"use client"` file that touches auth.
+
+## Notifications
+
+In-app only. **Not email, not LINE** — the user's explicit decision. `notifyStaffOfNewApplication` and `notifyApplicantOfStatusChange` live in `src/lib/notifications/dispatch.ts`, which is the adapter seam: adding LINE later means adding a second `deliver` inside that file, not touching `applications.ts`.
+
+- **One row per recipient, not one row per event.** "Read" is per-person; a shared row would mark a notification read for the whole team the moment one person opened it. A new application writes one document per active staff member, which is fine at a headcount in the tens.
+- **Every dispatch call is wrapped in `try`/`catch` at the call site** in `submitApplication` and `changeStatus`. The application has already been written by that point. Letting a notification failure throw would show the staff member "เปลี่ยนสถานะไม่สำเร็จ" for a status that did change, and they would press it again.
+- The collection has a **90-day TTL index**. Notifications are transient; the durable record is `activities`, which is never deleted.
+- `markNotificationRead` puts `userId` in the filter, and both server actions in `src/components/notifications/actions.ts` read the user from the session and never accept a `userId` parameter — a server action can be invoked directly, so an id passed in from the client would let anyone mark anyone's notifications read.
+- `countUnread` counts with `{ limit: 99 }`. The badge only ever renders "9+".
+- The bell (`notification-bell.tsx`) polls every 60s and again on `visibilitychange`, marks read optimistically, and appears in **both** `SiteHeader` and `AdminTopbar`. `SiteHeader` fetches its own notifications rather than taking them as a prop, so the seven pages that use it cannot each forget to pass them.
+- `timeAgo` lives in `src/lib/notifications/time-ago.ts` — a pure module with no imports — because it is used by the bell (client) and the dashboard card (server), and two copies would eventually word things differently.
 
 ## Roles and ownership
 

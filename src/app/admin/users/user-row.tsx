@@ -78,20 +78,23 @@ export function UserRow({
 
   return (
     <>
-      <li className="rounded-lg bg-canvas p-5 ring-1 ring-hairline ring-inset">
+      <li className="rounded-card bg-canvas p-5 shadow-soft ring-1 ring-hairline/70 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
             <span
               aria-hidden
-              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-pearl text-accent-ink"
+              className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-pearl text-ink-48"
             >
-              <RoleIcon className="size-4" />
+              <RoleIcon className="size-[18px]" strokeWidth={2} />
             </span>
             <div className="min-w-0">
               <p className="text-body font-semibold">{user.name || "—"}</p>
               <p className="break-all text-caption text-ink-48">{user.email}</p>
+              {/* ชิปแทนตัวหนังสือ — แถวนี้คือแถวเดียวที่ปุ่มทั้งสองถูกปิดไว้ ต้องเห็นเหตุผลก่อนจะงงว่าทำไมกดไม่ได้ */}
               {isSelf ? (
-                <p className="mt-1 text-fine font-semibold text-accent-ink">นี่คือบัญชีของคุณ</p>
+                <span className="mt-1.5 inline-flex min-h-[24px] items-center rounded-full bg-gold px-2.5 text-fine font-semibold text-[#0a0a0a]">
+                  นี่คือบัญชีของคุณ
+                </span>
               ) : null}
             </div>
           </div>
@@ -117,7 +120,7 @@ export function UserRow({
                 setNextRole(e.target.value as Role);
                 confirmRef.current?.showModal();
               }}
-              className="mt-2 min-h-[52px] rounded-md bg-canvas px-4 text-body text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink disabled:opacity-50"
+              className="mt-2 min-h-[52px] rounded-input bg-canvas px-4 text-body text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-ink disabled:opacity-50"
             >
               {ROLES.map((role) => (
                 <option key={role} value={role}>
@@ -134,10 +137,10 @@ export function UserRow({
               disabled={isSelf || pending}
               onClick={() => run(() => toggleActiveAction({ userId: user.id, active: !user.active }))}
               title={isSelf ? "ปิดบัญชีของตัวเองไม่ได้" : undefined}
-              className={`mt-2 inline-flex min-h-[52px] items-center rounded-full px-6 text-body transition-colors disabled:opacity-50 ${
+              className={`mt-2 inline-flex min-h-[52px] items-center rounded-btn px-6 text-body font-medium transition-colors disabled:opacity-50 ${
                 user.active
                   ? "bg-pearl text-ink ring-1 ring-hairline ring-inset hover:bg-danger/10 hover:text-danger-ink hover:ring-danger/25 focus-visible:outline-danger-focus"
-                  : "bg-ink text-on-dark"
+                  : "bg-nav text-white"
               }`}
             >
               {user.active ? "ใช้งานอยู่ — กดเพื่อปิด" : "ปิดอยู่ — กดเพื่อเปิด"}
@@ -150,7 +153,7 @@ export function UserRow({
         {error ? (
           <p
             role="alert"
-            className="mt-4 flex items-start gap-2 rounded-md bg-pearl p-4 text-caption text-danger-ink ring-2 ring-danger-ink ring-inset"
+            className="mt-4 flex items-start gap-2.5 rounded-input bg-danger/[0.06] p-4 text-caption text-danger-ink ring-1 ring-danger/25 ring-inset"
           >
             <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
             {error}
@@ -162,10 +165,10 @@ export function UserRow({
       <dialog
         ref={confirmRef}
         aria-labelledby={`confirm-role-${user.id}`}
-        className="login-dialog m-auto w-[min(92vw,28rem)] rounded-lg bg-canvas p-0 text-ink backdrop:bg-black/50"
+        className="login-dialog m-auto w-[min(92vw,28rem)] rounded-card bg-canvas p-0 text-ink shadow-lift backdrop:bg-black/60"
       >
-        <div className="p-7">
-          <h2 id={`confirm-role-${user.id}`} className="text-h3">
+        <div className="p-8">
+          <h2 id={`confirm-role-${user.id}`} className="text-h3 font-bold">
             ยืนยันการเปลี่ยนบทบาท
           </h2>
           <p className="mt-4 text-body text-ink-80">
@@ -174,7 +177,7 @@ export function UserRow({
             <span className="font-semibold">{nextRole ? ROLE_LABELS[nextRole] : "—"}</span>
           </p>
           {nextRole ? (
-            <p className="mt-4 rounded-md bg-pearl p-4 text-caption text-ink-80 ring-1 ring-hairline ring-inset">
+            <p className="mt-5 rounded-input bg-pearl p-4 text-caption leading-[1.7] text-ink-80 ring-1 ring-hairline ring-inset">
               {ROLE_EFFECT[nextRole]}
             </p>
           ) : null}
@@ -186,7 +189,7 @@ export function UserRow({
             <button
               type="button"
               onClick={() => confirmRef.current?.close()}
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full px-6 text-body text-ink-80 ring-1 ring-hairline ring-inset transition-colors hover:bg-parchment"
+              className="inline-flex min-h-[52px] items-center justify-center rounded-btn px-6 text-body font-medium text-ink-80 ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl"
             >
               ยกเลิก
             </button>
@@ -196,7 +199,7 @@ export function UserRow({
               onClick={() =>
                 nextRole && run(() => changeRoleAction({ userId: user.id, role: nextRole }))
               }
-              className="inline-flex min-h-[52px] items-center justify-center rounded-full bg-accent px-6 text-body font-semibold text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-60"
+              className="inline-flex min-h-[52px] items-center justify-center rounded-btn bg-nav px-6 text-body font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
             >
               {pending ? "กำลังบันทึก…" : "ยืนยันเปลี่ยนบทบาท"}
             </button>

@@ -36,11 +36,17 @@ export interface ApplicationData {
     branchCount: string;
     address: {
       line1: string;
+      /** หมู่ที่ — ที่อยู่นอกเขตเทศบาลเกือบทุกแห่งมี ถ้าไม่มีช่องนี้ผู้ใช้จะพิมพ์ "123 ม.4" รวมลงเลขที่ */
+      moo: string;
+      soi: string;
       road: string;
       subDistrict: string;
       district: string;
       province: string;
       postalCode: string;
+      /** จุดสังเกต — ไม่ใช่ส่วนหนึ่งของที่อยู่ไปรษณีย์ แต่เป็นสิ่งที่เจ้าหน้าที่ใช้หาร้านจริง ๆ
+       *  และเป็นตัวกู้เมื่อหมุดคลาดเคลื่อน จึงเก็บแยกช่องและแสดงแยกบรรทัดทุกหน้า */
+      landmark: string;
     };
     lat: string;
     lng: string;
@@ -83,7 +89,17 @@ export function emptyApplication(): ApplicationData {
       type: "",
       typeOther: "",
       branchCount: "",
-      address: { line1: "", road: "", subDistrict: "", district: "", province: "", postalCode: "" },
+      address: {
+        line1: "",
+        moo: "",
+        soi: "",
+        road: "",
+        subDistrict: "",
+        district: "",
+        province: "",
+        postalCode: "",
+        landmark: "",
+      },
       lat: "",
       lng: "",
     },
@@ -105,11 +121,14 @@ export const draftSchema = z.object({
     branchCount: z.string().max(20).default(""),
     address: z.object({
       line1: z.string().max(200).default(""),
+      moo: z.string().max(20).default(""),
+      soi: z.string().max(120).default(""),
       road: z.string().max(200).default(""),
       subDistrict: z.string().max(120).default(""),
       district: z.string().max(120).default(""),
       province: z.string().max(120).default(""),
       postalCode: z.string().max(10).default(""),
+      landmark: z.string().max(300).default(""),
     }),
     lat: z.string().max(32).default(""),
     lng: z.string().max(32).default(""),
@@ -164,6 +183,8 @@ export const stepSchemas = {
         branchCount: optionalOption(BRANCH_COUNTS),
         address: z.object({
           line1: z.string().trim().min(1, "กรอกเลขที่"),
+          moo: z.string(),
+          soi: z.string(),
           road: z.string(),
           subDistrict: z.string().trim().min(1, "กรอกตำบลหรือแขวง"),
           district: z.string().trim().min(1, "กรอกอำเภอหรือเขต"),
@@ -172,6 +193,7 @@ export const stepSchemas = {
             .string()
             .trim()
             .regex(/^\d{5}$/, "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก"),
+          landmark: z.string(),
         }),
         lat: z.string(),
         lng: z.string(),

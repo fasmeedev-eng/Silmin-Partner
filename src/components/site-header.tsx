@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { Calculator, LogOut, SquarePen, UserRound } from "lucide-react";
-import { signOut } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { AuthCta } from "@/components/auth/auth-cta";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { MobileNav } from "@/components/mobile-nav";
 import { SECTION_LINKS } from "@/components/nav-links";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ctaClass } from "@/components/ui/cta-button";
+import { countUnread, listNotifications } from "@/lib/db/notifications";
 import type { Role } from "@/lib/auth/roles";
 
-export function SiteHeader({
+/**
+ * แถบนำทางดึงการแจ้งเตือนของตัวเอง ไม่รับมาเป็น prop — ไม่งั้นทุกหน้าที่ใช้แถบนี้ (เจ็ดหน้า)
+ * ต้องจำไว้ว่าต้องส่งมาด้วย และหน้าที่ลืมจะได้กระดิ่งว่างเปล่าโดยไม่มีอะไรเตือน
+ * auth() ถูกแคชต่อ request อยู่แล้ว การเรียกซ้ำจากตรงนี้จึงไม่เพิ่มงาน
+ */
+export async function SiteHeader({
   signedIn,
   email,
   role,
@@ -30,6 +37,14 @@ export function SiteHeader({
 }) {
   // เจ้าหน้าที่ต้องมีทางเข้าหลังบ้านที่กดได้ ไม่ใช่ต้องจำ URL เอง
   const isStaff = role === "admin" || role === "employee";
+
+  const session = signedIn ? await auth() : null;
+  const notifications = session?.user?.id
+    ? {
+        items: await listNotifications(session.user.id),
+        unread: await countUnread(session.user.id),
+      }
+    : null;
 
   // server action สร้างที่นี่แล้วส่งลงไปเป็น element เพราะ MobileNav เป็น client component
   const signOutButton = (
@@ -129,6 +144,14 @@ export function SiteHeader({
               {/* กลุ่มบัญชีแยกจากเมนูใช้งานด้วยเส้นคั่น — สองกลุ่มนี้ตอบคนละคำถาม
                   (จะไปหน้าไหน vs กำลังใช้บัญชีใคร) คนที่มีหลาย Google account ต้องเห็นอีเมล */}
               <span aria-hidden className="mx-0.5 hidden h-7 w-px bg-white/15 sm:block" />
+
+              {notifications ? (
+                <NotificationBell
+                  initialItems={notifications.items}
+                  initialUnread={notifications.unread}
+                  tone="dark"
+                />
+              ) : null}
 
               <div className="hidden items-center gap-1.5 rounded-full p-1 ring-1 ring-inset ring-white/15 sm:flex">
                 {email ? (

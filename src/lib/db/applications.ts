@@ -8,6 +8,10 @@ import { EDITABLE_STATUSES, STATUS_META, isEditable } from "@/lib/application/st
 import { canTransition } from "@/lib/application/transitions";
 import { moveAndRename } from "@/lib/drive/client";
 import { ensureFolders } from "@/lib/drive/folders";
+import {
+  notifyApplicantOfStatusChange,
+  notifyStaffOfNewApplication,
+} from "@/lib/notifications/dispatch";
 
 export type ApplicationStatus =
   | "Draft"
@@ -338,6 +342,19 @@ export async function submitApplication(
     at: now,
   });
 
+  // แจ้งเจ้าหน้าที่ว่ามีใบใหม่ — ห้ามให้ล้มเหลวตรงนี้ทำให้การส่งใบสมัครล้มเหลวตาม
+  // ใบสมัครถูกบันทึกไปแล้วข้างบน ถ้าโยน error ต่อ ผู้ใช้จะเห็นว่าส่งไม่สำเร็จทั้งที่ส่งสำเร็จ
+  // แล้วกดส่งซ้ำ ซึ่งแย่กว่าการที่เจ้าหน้าที่ไม่ได้รับแจ้งเตือนหนึ่งครั้ง (คิวยังเห็นใบนี้อยู่ดี)
+  try {
+    await notifyStaffOfNewApplication({
+      applicationId,
+      shopName: data.shop.name,
+      province: data.shop.address.province || undefined,
+    });
+  } catch (error) {
+    console.error("[notifications] แจ้งเตือนใบสมัครใหม่ไม่สำเร็จ", applicationId, error);
+  }
+
   return result.applicationId ?? applicationId;
 }
 
@@ -421,15 +438,30 @@ export async function hasActivePartnerApplication(ownerUserId: string): Promise<
 
 export const ADMIN_PAGE_SIZE = 20;
 
+/** ตัวเลือกจำนวนแถวต่อหน้า — ค่าอื่นถูกปัดกลับเป็นค่าเริ่มต้น กัน searchParam ที่สั่งดึงทีเดียวหมื่นแถว */
+export const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+
+export function parsePageSize(value: string | undefined): PageSize {
+  const n = Number(value);
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(n) ? (n as PageSize) : ADMIN_PAGE_SIZE;
+}
+
 export interface AdminListFilters {
   /** กรองด้วยสถานะเดียว หรือด้วยกองงาน (bucket) ที่รวมหลายสถานะ */
   status?: ApplicationStatus;
   statuses?: ApplicationStatus[];
   province?: string;
+  /** โค้ดประเภทร้านจาก SHOP_TYPES */
+  shopType?: string;
   documents?: "complete" | "incomplete";
   q?: string;
+  /** ช่วงวันที่ยื่นใบสมัคร — ปลายเปิดข้างใดข้างหนึ่งได้ */
+  from?: Date;
+  to?: Date;
   sort?: "newest" | "oldest";
   page?: number;
+  pageSize?: number;
 }
 
 /** กันอักขระพิเศษของ regex ไม่ให้คำค้นกลายเป็นแพตเทิร์นที่ทำเซิร์ฟเวอร์ช้าหรือพัง */
@@ -452,6 +484,16 @@ function buildQuery(filters: AdminListFilters): Filter<ApplicationDoc> {
   if (filters.status) query.status = filters.status;
   else if (filters.statuses?.length) query.status = { $in: filters.statuses };
   if (filters.province) query["data.shop.address.province"] = filters.province;
+  if (filters.shopType) query["data.shop.type"] = filters.shopType;
+
+  // ช่วงวันที่กรองที่ submittedAt เท่านั้น ไม่ใช่ updatedAt — คำถามคือ "ใบที่เข้ามาช่วงนี้"
+  // ถ้ากรองด้วย updatedAt ใบเก่าที่เจ้าหน้าที่เพิ่งแตะจะโผล่มาปนกับใบใหม่
+  if (filters.from || filters.to) {
+    query.submittedAt = {
+      ...(filters.from ? { $gte: filters.from } : {}),
+      ...(filters.to ? { $lte: filters.to } : {}),
+    };
+  }
 
   const conditions: Filter<ApplicationDoc>[] = [];
   if (filters.documents) conditions.push(documentsFilter(filters.documents));
@@ -477,6 +519,7 @@ function buildQuery(filters: AdminListFilters): Filter<ApplicationDoc> {
 export async function listAllApplications(filters: AdminListFilters) {
   const col = await applications();
   const query = buildQuery(filters);
+  const pageSize = filters.pageSize ?? ADMIN_PAGE_SIZE;
   const page = Math.max(1, filters.page ?? 1);
 
   const [items, total] = await Promise.all([
@@ -489,19 +532,20 @@ export async function listAllApplications(filters: AdminListFilters) {
           updatedAt: 1,
           documents: 1,
           "data.shop.name": 1,
+          "data.shop.type": 1,
           "data.shop.address.province": 1,
           "data.contact.fullName": 1,
           "data.contact.phone": 1,
         },
       })
       .sort({ submittedAt: filters.sort === "oldest" ? 1 : -1 })
-      .skip((page - 1) * ADMIN_PAGE_SIZE)
-      .limit(ADMIN_PAGE_SIZE)
+      .skip((page - 1) * pageSize)
+      .limit(pageSize)
       .toArray(),
     col.countDocuments(query),
   ]);
 
-  return { items, total, page, pageSize: ADMIN_PAGE_SIZE };
+  return { items, total, page, pageSize };
 }
 
 /** จำนวนใบในแต่ละสถานะ ใช้ทำแถวสรุปด้านบนคิวงาน */
@@ -628,7 +672,7 @@ export async function changeStatus(
   const col = await applications();
   const current = await col.findOne(
     { applicationId },
-    { projection: { status: 1 } },
+    { projection: { status: 1, ownerUserId: 1 } },
   );
   if (!current) return { ok: false, reason: "not_found" };
   if (!canTransition(current.status, to)) {
@@ -662,6 +706,19 @@ export async function changeStatus(
     visibility: "applicant",
     at: now,
   });
+
+  // แจ้งผู้สมัครว่าสถานะเปลี่ยน — เหตุผลเดียวกับตอนส่งใบสมัคร สถานะถูกเขียนไปแล้ว
+  // ถ้าโยน error ต่อ เจ้าหน้าที่จะเห็นว่าเปลี่ยนไม่สำเร็จแล้วกดซ้ำ ทั้งที่เปลี่ยนไปเรียบร้อยแล้ว
+  try {
+    await notifyApplicantOfStatusChange({
+      applicationId,
+      ownerUserId: current.ownerUserId,
+      to,
+      message,
+    });
+  } catch (error) {
+    console.error("[notifications] แจ้งเตือนเปลี่ยนสถานะไม่สำเร็จ", applicationId, error);
+  }
 
   return { ok: true, from: current.status, to };
 }

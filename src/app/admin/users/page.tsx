@@ -26,14 +26,13 @@ export default async function AdminUsersPage() {
 
   return (
     <>
-
-      <main className="mx-auto w-full  px-6 py-10 sm:px-8">
+      <main className="mx-auto w-full max-w-[1180px] px-6 py-10 lg:px-8 lg:py-12">
         <p className="text-caption text-ink-48">ระบบหลังบ้าน</p>
-        <h1 className="mt-1 text-h3 sm:text-h2">ผู้ใช้และบทบาท</h1>
+        <h1 className="mt-1 text-h3 font-bold leading-[1.32] sm:text-h2">ผู้ใช้และบทบาท</h1>
 
-        <p className="mt-6 max-w-[64ch] text-caption text-ink-80">
+        <p className="mt-5 max-w-[66ch] text-lead text-ink-80">
           ทุกคนที่เข้าสู่ระบบด้วย Google จะถูกสร้างเป็น{" "}
-          <span className="font-semibold">ลูกค้า</span> โดยอัตโนมัติ
+          <span className="font-semibold text-ink">ลูกค้า</span> โดยอัตโนมัติ
           การยกระดับเป็นพนักงานหรือแอดมินต้องทำที่นี่ และทุกการเปลี่ยนแปลงถูกบันทึกไว้
         </p>
 
@@ -54,25 +53,26 @@ export default async function AdminUsersPage() {
           ))}
         </ul>
 
-        <p className="mt-4 text-fine text-ink-48">
+        {/* ทางหนีไฟตอนล็อกตัวเองออกทั้งหมด — ต้องอ่านออกตอนที่คนอ่านกำลังตกใจ จึงไม่ใช่ตัวเทาจาง */}
+        <p className="mt-5 rounded-input bg-pearl p-4 text-fine leading-[1.8] text-ink-80 ring-1 ring-hairline ring-inset">
           การเปลี่ยนแปลงมีผลภายใน 30 วินาที ผู้ใช้ไม่ต้องออกจากระบบแล้วเข้าใหม่ ·
           หากแอดมินทุกคนถูกล็อกออกจากระบบ ใช้{" "}
-          <code className="rounded-sm bg-pearl px-1.5 py-0.5">
+          <code className="rounded-sm bg-nav px-2 py-1 text-white">
             node scripts/set-role.mjs &lt;email&gt; admin
           </code>{" "}
           กู้คืนได้
         </p>
 
-        <section className="mt-10">
+        <section className="mt-10 rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7">
           <h2 className="text-body font-semibold">ประวัติการเปลี่ยนสิทธิ์</h2>
           {audit.length === 0 ? (
             <p className="mt-3 text-caption text-ink-48">ยังไม่มีการเปลี่ยนแปลง</p>
           ) : (
-            <ol className="mt-4 space-y-3">
+            <ol className="mt-5 space-y-5">
               {audit.map((entry, index) => (
                 <li
                   key={`${entry.at.toISOString()}-${index}`}
-                  className="border-l-2 border-hairline pl-4"
+                  className="border-l-2 border-brand/25 pl-4"
                 >
                   <p className="text-caption text-ink">
                     {entry.targetEmail ? `${entry.targetEmail}: ` : ""}

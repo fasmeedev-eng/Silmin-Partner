@@ -53,14 +53,34 @@ export function DocumentsStep({
       if (response.ok) {
         const payload = (await response.json()) as { documents: PublicDocument[] };
         setDocuments(payload.documents);
-        publish(payload.documents);
       }
       setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [publish, applicationId]);
+  }, [applicationId]);
+
+  /**
+   * รายงานจำนวนไฟล์ขึ้นไปให้ ApplyForm จาก effect เท่านั้น ห้ามเรียกจากที่อื่น
+   *
+   * เดิมเรียก publish() อยู่ข้างใน updater ของ setDocuments ซึ่งดูเหมือนจะสะดวกเพราะมี next
+   * อยู่ในมือแล้ว แต่ React เรียก updater ระหว่าง render phase และเรียกซ้ำได้มากกว่าหนึ่งครั้ง
+   * การ setState ของคอมโพเนนต์แม่จากตรงนั้นจึงได้ error "Cannot update a component while
+   * rendering a different component" — updater ต้องเป็นฟังก์ชันบริสุทธิ์ ผลข้างเคียงทั้งหมด
+   * ต้องรอให้ state เปลี่ยนเสร็จก่อนแล้วค่อยทำใน effect
+   *
+   * ปลอดภัยจากลูปเพราะ onCountsChange ฝั่ง ApplyForm ถูก useCallback ไว้ identity จึงคงที่
+   *
+   * เงื่อนไข loading สำคัญ ไม่ใช่การกันพลาดเผื่อไว้เฉย ๆ — ผู้ใช้ที่ถอยกลับไปขั้นก่อนหน้าแล้ว
+   * กลับมาขั้นนี้อีกครั้งจะทำให้คอมโพเนนต์นี้ mount ใหม่และเริ่มที่ documents = [] ถ้าปล่อยให้
+   * รายงานตอนนั้น ApplyForm จะได้ค่าว่างทับของเดิมชั่วขณะระหว่างรอ fetch แล้วปุ่ม "ถัดไป"
+   * จะบล็อกทั้งที่ผู้ใช้แนบไฟล์ครบไปแล้ว รายงานเฉพาะตอนที่รู้จำนวนไฟล์จริงเท่านั้น
+   */
+  useEffect(() => {
+    if (loading) return;
+    publish(documents);
+  }, [documents, loading, publish]);
 
   const upload = async (categoryId: string, file: File) => {
     setError(undefined);
@@ -79,11 +99,7 @@ export function DocumentsStep({
     } else {
       // อัปเดตแบบ functional กันกรณีอัปโหลดสองหมวดพร้อมกัน — ค่า documents ที่ปิดคลุมไว้ตอนเรียก
       // ฟังก์ชันนี้อาจเก่ากว่าที่อีกคำขอเพิ่งเขียนไปแล้ว
-      setDocuments((prev) => {
-        const next = [...prev, payload.document as PublicDocument];
-        publish(next);
-        return next;
-      });
+      setDocuments((prev) => [...prev, payload.document as PublicDocument]);
     }
     setBusyCategories((prev) => {
       const next = new Set(prev);
@@ -103,11 +119,7 @@ export function DocumentsStep({
       setError("ลบไฟล์ไม่สำเร็จ กรุณาลองอีกครั้ง");
       return;
     }
-    setDocuments((prev) => {
-      const next = prev.filter((d) => d.id !== id);
-      publish(next);
-      return next;
-    });
+    setDocuments((prev) => prev.filter((d) => d.id !== id));
   };
 
   return (

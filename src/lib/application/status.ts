@@ -85,39 +85,6 @@ export function isDangerStatus(status: ApplicationStatus): boolean {
 }
 
 /**
- * จัดกลุ่ม 7 สถานะเป็น 3 กอง ตามคำถามที่เจ้าหน้าที่ถามจริง ๆ ว่า "ฉันต้องทำอะไร"
- *
- * เจ็ดปุ่มเรียงกันบังคับให้คนอ่านทีละอันแล้วแปลเอง ซึ่งคนที่ไม่ถนัดคอมพิวเตอร์จะไม่อ่าน
- * สามกองตอบได้ทันทีว่ากองไหนคืองานของวันนี้
- */
-export const WORK_BUCKETS = [
-  {
-    id: "todo",
-    label: "รอคุณตรวจ",
-    hint: "ใบใหม่ที่ยังไม่มีใครแตะ",
-    statuses: ["New"] as ApplicationStatus[],
-  },
-  {
-    id: "doing",
-    label: "กำลังดำเนินการ",
-    hint: "ตรวจอยู่ รออนุมัติ หรือรอเอกสารเพิ่ม",
-    statuses: ["Reviewing", "NeedMoreInfo", "Approved", "Onboarding"] as ApplicationStatus[],
-  },
-  {
-    id: "done",
-    label: "จบแล้ว",
-    hint: "เป็นพาร์ทเนอร์แล้ว หรือไม่ผ่าน",
-    statuses: ["ActivePartner", "Rejected"] as ApplicationStatus[],
-  },
-] as const;
-
-export type WorkBucketId = (typeof WORK_BUCKETS)[number]["id"];
-
-export function bucketById(id: string | undefined) {
-  return WORK_BUCKETS.find((b) => b.id === id);
-}
-
-/**
  * เส้นทางที่ใบสมัครเดินผ่าน ใช้วาดแถบความคืบหน้า
  * NeedMoreInfo กับ Rejected ไม่อยู่ในเส้นนี้ เพราะเป็นการแตกออกข้าง ไม่ใช่ขั้นถัดไป
  */
@@ -175,4 +142,80 @@ export function statusChipClass(status: ApplicationStatus): string {
   // ดำคือ "จบแล้ว/ผ่านแล้ว" — ไม่ใช้แดง เพราะชิปไม่ใช่สิ่งที่กดได้ แดงสงวนไว้ให้ปุ่มกับ error
   if (status === "ActivePartner" || status === "Approved") return "bg-nav text-white";
   return "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset";
+}
+
+/**
+ * สี่กองที่ใช้ทั้งหน้าคิวงานและแดชบอร์ด
+ *
+ * แบ่งครบทั้งเจ็ดสถานะโดยไม่ซ้ำและไม่ขาด ซึ่งเป็นข้อบังคับ ไม่ใช่ความเรียบร้อย:
+ * การ์ดสรุปแสดงสัดส่วนของแต่ละกองเทียบยอดรวม ถ้ารวมกันไม่ได้ 100% ทั้งแถบก็เชื่อไม่ได้
+ *
+ * เคยมีชุดที่สอง (WORK_BUCKETS — รอคุณตรวจ / กำลังดำเนินการ / จบแล้ว) ใช้เฉพาะหน้าคิวงาน
+ * ถอดออกแล้วเพราะสองหน้าที่แสดงข้อมูลชุดเดียวกันแต่จัดกองคนละแบบ ทำให้ตัวเลขบนสองหน้า
+ * ขัดกันเองในสายตาคนอ่าน ทั้งที่ทั้งคู่ถูก — กดการ์ดจากแดชบอร์ดแล้วเจอยอดไม่ตรงคือกับดักนั้น
+ *
+ * ลำดับคือ ยังเปิดอยู่สองกอง (pending, needinfo) แล้วค่อยผลลัพธ์สองกอง (approved, rejected)
+ */
+export const KPI_BUCKETS = [
+  {
+    id: "pending",
+    label: "รอตรวจสอบ",
+    hint: "ยังไม่มีใครตรวจ หรือกำลังตรวจอยู่",
+    statuses: ["New", "Reviewing"] as ApplicationStatus[],
+  },
+  {
+    id: "needinfo",
+    label: "รอข้อมูลเพิ่มเติม",
+    hint: "ลูกบอลอยู่ที่ผู้สมัคร",
+    statuses: ["NeedMoreInfo"] as ApplicationStatus[],
+  },
+  {
+    id: "approved",
+    label: "อนุมัติแล้ว",
+    hint: "อนุมัติแล้ว ทำสัญญา หรือเปิดใช้งานแล้ว",
+    statuses: ["Approved", "Onboarding", "ActivePartner"] as ApplicationStatus[],
+  },
+  {
+    id: "rejected",
+    label: "ไม่อนุมัติ",
+    hint: "สิ้นสุดการพิจารณาแล้ว",
+    statuses: ["Rejected"] as ApplicationStatus[],
+  },
+] as const;
+
+export type KpiBucketId = (typeof KPI_BUCKETS)[number]["id"];
+
+export function kpiBucketById(id: string | undefined) {
+  return KPI_BUCKETS.find((b) => b.id === id);
+}
+
+/**
+ * สีของแถบความคืบหน้าในตารางคิวงาน
+ *
+ * ใช้ความหมายชุดเดียวกับ statusChipClass เป๊ะ ๆ (ทอง = ถึงตาผู้สมัคร, ดำ = จบและผ่าน,
+ * แดง danger = ไม่ผ่าน, เทา = กำลังเดินอยู่) เพราะชิปกับแถบอยู่ติดกันในแถวเดียวกัน
+ * ถ้าสองอย่างนี้ใช้คนละระบบสี คนอ่านจะคิดว่ามันบอกคนละเรื่อง
+ *
+ * แดงแบรนด์ไม่โผล่ที่นี่ด้วยเหตุผลเดียวกับที่ไม่โผล่บนชิป — แถบไม่ใช่สิ่งที่กดได้
+ */
+export function statusBarClass(status: ApplicationStatus): string {
+  const meta = STATUS_META[status];
+  if (meta.dangerStyled) return "bg-danger";
+  if (meta.needsAction) return "bg-gold";
+  if (status === "ActivePartner" || status === "Approved") return "bg-nav";
+  return "bg-ink-48";
+}
+
+/**
+ * สีตัวอักษร/ไอคอนที่ใช้วางทับพื้น statusBarClass(status) ของสถานะเดียวกัน
+ *
+ * แยกออกมาเพราะพื้นหลังมีสี่แบบที่คอนทราสต์ต่างกันมาก (ทอง ~1.5:1 กับขาว, ดำ/แดง ~15+:1)
+ * ใช้ที่แถบความคืบหน้าและ badge ขั้นตอนปัจจุบันในหน้ารายละเอียดใบสมัคร ซึ่งทั้งสองจุด
+ * ต้องตัดสินใจสีตัวอักษรแบบเดียวกันกับพื้นหลังแบบเดียวกัน แยกฟังก์ชันไว้ที่นี่ที่เดียว
+ * กันสองจุดตัดสินไม่ตรงกัน
+ */
+export function statusOnBarClass(status: ApplicationStatus): string {
+  const meta = STATUS_META[status];
+  if (meta.needsAction) return "text-[#0a0a0a]";
+  return "text-white";
 }

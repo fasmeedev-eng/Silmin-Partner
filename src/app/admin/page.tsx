@@ -1,57 +1,66 @@
 import Link from "next/link";
 import {
-  AlertCircle,
+  ChevronDown,
+  ClipboardList,
+  Clock,
   CircleCheck,
-  ChevronRight,
-  Inbox,
-  LayoutGrid,
-  RefreshCw,
+  CircleX,
+  MessageCircleWarning,
   Search,
   SlidersHorizontal,
-  TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
 import { guardRole } from "@/lib/auth/guard";
 import {
-  ADMIN_PAGE_SIZE,
-  countByStatus,
   listAllApplications,
   listUsedProvinces,
+  parsePageSize,
   type ApplicationStatus,
 } from "@/lib/db/applications";
+import { findOldestPending, loadQueueSummary } from "@/lib/db/dashboard";
+import { KPI_BUCKETS, kpiBucketById, type KpiBucketId } from "@/lib/application/status";
+import { SHOP_TYPES } from "@/lib/application/options";
 import {
-  STATUS_META,
-  WORK_BUCKETS,
-  bucketById,
-  statusChipClass,
-  type WorkBucketId,
-} from "@/lib/application/status";
-import { documentsComplete, missingCategories } from "@/lib/application/categories";
+  DateRangeFilter,
+  ExportMenu,
+  parseQueueRange,
+  queueRangeDays,
+} from "@/components/admin/queue/queue-controls";
+import { QueueBucketCard, QueueTotalCard } from "@/components/admin/queue/queue-stat-card";
+import { QueuePagination } from "@/components/admin/queue/queue-pagination";
+import { QueueTable, type QueueRow } from "@/components/admin/queue/queue-table";
+import type { TrendPolarity } from "@/components/admin/trend-line";
 
-// WORK_BUCKETS เป็นข้อมูลล้วน ใช้ทั้งฝั่งเซิร์ฟเวอร์ (กรองคิวรี) จึงไม่ใส่ไอคอนไว้ในนั้น
-// แมปแยกไว้ที่นี่ ที่เดียวที่ต้องเรนเดอร์จริง
-const BUCKET_ICONS: Record<WorkBucketId | "all", LucideIcon> = {
-  todo: Inbox,
-  doing: RefreshCw,
-  done: CircleCheck,
-  all: LayoutGrid,
+export const metadata = { title: "คิวใบสมัคร" };
+
+/**
+ * ไอคอนและสีชิปของแต่ละกอง เก็บที่นี่ไม่ใช่ใน KPI_BUCKETS
+ * เพราะไฟล์นั้นเป็นข้อมูลล้วนที่ฝั่งเซิร์ฟเวอร์ใช้กรองคิวรีด้วย การยัดคลาส CSS ลงไป
+ * จะผูกมันเข้ากับการแสดงผลโดยไม่จำเป็น (กฎเดียวกับ BUCKET_STYLE ของแดชบอร์ด)
+ *
+ * สีชิปตรงกับ statusChipClass ของสถานะในกองนั้น — การ์ดกับตารางอยู่บนจอเดียวกัน
+ */
+const BUCKET_STYLE: Record<
+  KpiBucketId,
+  { icon: LucideIcon; chip: string; polarity: TrendPolarity }
+> = {
+  pending: {
+    icon: Clock,
+    chip: "bg-pearl text-ink-80 ring-1 ring-inset ring-hairline",
+    polarity: "neutral",
+  },
+  needinfo: {
+    icon: MessageCircleWarning,
+    chip: "bg-gold-soft text-gold-ink ring-1 ring-inset ring-gold/40",
+    polarity: "less-is-good",
+  },
+  approved: { icon: CircleCheck, chip: "bg-nav text-white", polarity: "more-is-good" },
+  rejected: {
+    icon: CircleX,
+    chip: "bg-danger/10 text-danger-ink ring-1 ring-inset ring-danger/25",
+    polarity: "less-is-good",
+  },
 };
-
-export const metadata = { title: "ใบสมัคร" };
-
-const thaiDate = new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "short" });
-
-function daysSince(date: Date | undefined): number {
-  if (!date) return 0;
-  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
-}
-
-/** คำบอกอายุที่อ่านแล้วเข้าใจทันที ไม่ต้องคำนวณจากวันที่เอง */
-function waitingLabel(days: number): string {
-  if (days <= 0) return "เข้ามาวันนี้";
-  if (days === 1) return "รอมา 1 วัน";
-  return `รอมา ${days} วัน`;
-}
 
 export default async function AdminQueuePage({
   searchParams,
@@ -63,313 +72,302 @@ export default async function AdminQueuePage({
   const { staff } = result;
 
   const params = await searchParams;
-  const showAll = params.bucket === "all";
-  const bucket = bucketById(params.bucket) ?? WORK_BUCKETS[0];
-
-  const documentsParam = params.documents;
-  const documentsFilter: "complete" | "incomplete" | undefined =
-    documentsParam === "complete" || documentsParam === "incomplete" ? documentsParam : undefined;
+  const tab = kpiBucketById(params.tab)?.id ?? "all";
+  const tabStatuses = kpiBucketById(tab)?.statuses;
+  const range = parseQueueRange(params.range);
+  const rangeDays = queueRangeDays(range);
+  const shopType = SHOP_TYPES.some((t) => t.value === params.type) ? params.type : undefined;
+  const province = params.province || undefined;
+  const documents: "complete" | "incomplete" | undefined =
+    params.documents === "complete" || params.documents === "incomplete"
+      ? params.documents
+      : undefined;
+  const sort = params.sort === "newest" ? ("newest" as const) : ("oldest" as const);
+  const pageSize = parsePageSize(params.size);
+  const page = Number(params.page) > 0 ? Number(params.page) : 1;
 
   const filters = {
-    statuses: showAll ? undefined : [...bucket.statuses],
-    province: params.province || undefined,
-    documents: documentsFilter,
-    q: params.q || undefined,
-    sort: params.sort === "newest" ? ("newest" as const) : ("oldest" as const),
-    page: Number(params.page) > 0 ? Number(params.page) : 1,
+    statuses: tabStatuses ? [...tabStatuses] : undefined,
+    province,
+    shopType,
+    documents,
+    q: params.q?.trim() || undefined,
+    from: rangeDays === null ? undefined : new Date(Date.now() - rangeDays * 86_400_000),
+    sort,
+    page,
+    pageSize,
   };
 
-  const [{ items, total, page }, counts, provinces] = await Promise.all([
+  const [listed, summary, provinces, oldestPending] = await Promise.all([
     listAllApplications(filters),
-    countByStatus(),
+    loadQueueSummary(),
     listUsedProvinces(),
+    findOldestPending(),
   ]);
 
-  const bucketCount = (statuses: readonly ApplicationStatus[]) =>
-    statuses.reduce((sum, s) => sum + (counts[s] ?? 0), 0);
-  const allCount = Object.values(counts).reduce((sum, n) => sum + n, 0);
-  const todoCount = bucketCount(WORK_BUCKETS[0].statuses);
-  const totalPages = Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE));
-  const hasExtraFilter = Boolean(filters.province || filters.documents || params.sort === "newest");
-
-  const pageHref = (n: number) => {
+  /** สร้าง URL โดยคงตัวกรองอื่นไว้ — ทุกลิงก์บนหน้านี้ต้องไม่ทำให้ตัวกรองที่ตั้งไว้หายไป */
+  const hrefWith = (overrides: Record<string, string | number | undefined>) => {
     const next = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) if (v && k !== "page") next.set(k, v);
-    next.set("page", String(n));
-    return `/admin?${next}`;
+    const base: Record<string, string | undefined> = {
+      tab: tab === "all" ? undefined : tab,
+      range: range === "all" ? undefined : range,
+      type: shopType,
+      province,
+      documents,
+      q: filters.q,
+      sort: sort === "oldest" ? undefined : sort,
+      size: pageSize === 20 ? undefined : String(pageSize),
+      page: page === 1 ? undefined : String(page),
+      ...Object.fromEntries(
+        Object.entries(overrides).map(([k, v]) => [k, v === undefined ? undefined : String(v)]),
+      ),
+    };
+    for (const [key, value] of Object.entries(base)) if (value) next.set(key, value);
+    const query = next.toString();
+    return query ? `/admin?${query}` : "/admin";
   };
 
-  const cardClass = (active: boolean) =>
-    `rounded-lg p-5 transition-colors ${active ? "bg-accent text-on-accent" : "bg-canvas ring-1 ring-hairline ring-inset hover:bg-pearl"
-    }`;
+  const tabs: { id: string; label: string }[] = [
+    { id: "all", label: "ทั้งหมด" },
+    ...KPI_BUCKETS.map((b) => ({ id: b.id as string, label: b.label as string })),
+  ];
+
+  const hasExtraFilter = Boolean(province || documents || sort === "newest");
+  // ส่งออกใช้ตัวกรองชุดเดียวกับที่แสดงอยู่ ยกเว้นเลขหน้า — ไฟล์ CSV ไม่มีหน้า
+  const exportHref = `/admin/export${hrefWith({ page: undefined }).slice("/admin".length)}`;
 
   return (
-    <main className="mx-auto w-full  px-6 py-10 sm:px-8">
-      {/* พาดหัวตอบคำถามเดียวที่เจ้าหน้าที่ถามตอนเปิดคอม ไม่ใช่ชื่อหน้าจอ */}
-      <p className="text-caption text-ink-48">สวัสดี {staff.name || staff.email}</p>
-      <h1 className="mt-2 text-h3 sm:text-h2">
-        {todoCount > 0 ? `มี ${todoCount} ใบรอคุณตรวจ` : "ไม่มีใบใหม่รอตรวจ"}
-      </h1>
-      <p className="mt-3 max-w-[52ch] text-body text-ink-80">
-        {todoCount > 0
-          ? "เลือกใบที่ต้องการ กดเข้าไปดูรายละเอียด แล้วเลือกว่าจะดำเนินการอย่างไร"
-          : "ใบสมัครใหม่จะขึ้นที่นี่เองโดยอัตโนมัติ ตอนนี้ยังไม่มีใบไหนรออยู่"}
-      </p>
-
-      {/* สามกองงานแทนเจ็ดสถานะ — ตอบได้ทันทีว่ากองไหนคืองานของวันนี้
-          ไอคอนต่อกองช่วยให้จับกองที่ต้องการได้จากรูปทรง ไม่ต้องอ่านทุกคำ */}
-      <nav aria-label="เลือกกลุ่มงาน" className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {WORK_BUCKETS.map((item) => {
-          const active = !showAll && item.id === bucket.id;
-          const Icon = BUCKET_ICONS[item.id];
-          return (
-            <Link
-              key={item.id}
-              href={`/admin?bucket=${item.id}`}
-              aria-current={active ? "page" : undefined}
-              className={cardClass(active)}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-h3 tabular-nums">{bucketCount(item.statuses)}</p>
-                <span
-                  aria-hidden
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-md ${active ? "bg-on-accent/15 text-on-accent" : "bg-pearl text-accent-ink"}`}
-                >
-                  <Icon className="size-4" />
-                </span>
-              </div>
-              <p className="mt-1 text-body font-semibold">{item.label}</p>
-              <p className={`mt-1 text-fine ${active ? "text-on-accent/70" : "text-ink-48"}`}>
-                {item.hint}
-              </p>
-            </Link>
-          );
-        })}
-
-        <Link
-          href="/admin?bucket=all"
-          aria-current={showAll ? "page" : undefined}
-          className={cardClass(showAll)}
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-h3 tabular-nums">{allCount}</p>
-            <span
-              aria-hidden
-              className={`flex size-9 shrink-0 items-center justify-center rounded-md ${showAll ? "bg-on-accent/15 text-on-accent" : "bg-pearl text-accent-ink"}`}
-            >
-              <LayoutGrid className="size-4" />
-            </span>
-          </div>
-          <p className="mt-1 text-body font-semibold">ทั้งหมด</p>
-          <p className={`mt-1 text-fine ${showAll ? "text-on-accent/70" : "text-ink-48"}`}>
-            ทุกใบที่เคยส่งเข้ามา
+    <main className="mx-auto w-full max-w-[1440px] px-6 py-8 lg:px-8 lg:py-10">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
+          <p className="text-caption text-ink-48">สวัสดี {staff.name || staff.email}</p>
+          <h1 className="mt-1.5 text-h3 font-bold leading-[1.28] sm:text-h2">คิวใบสมัคร</h1>
+          <p className="mt-2 text-body text-ink-80">
+            จัดการและตรวจสอบใบสมัครพาร์ทเนอร์ทั้งหมด
           </p>
-        </Link>
-      </nav>
-
-      {/* ช่องค้นหาช่องเดียว กด Enter ก็ค้นได้ ไม่ต้องมองหาปุ่ม */}
-      <form method="get" className="mt-8">
-        <input type="hidden" name="bucket" value={params.bucket ?? bucket.id} />
-        <label htmlFor="q" className="block text-caption font-semibold text-ink">
-          ค้นหาใบสมัคร
-        </label>
-        <div className="relative mt-2">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-5 top-1/2 size-5 -translate-y-1/2 text-ink-48"
-          />
-          <input
-            id="q"
-            name="q"
-            type="search"
-            defaultValue={filters.q ?? ""}
-            placeholder="พิมพ์ชื่อร้าน เบอร์โทร หรือเลขที่ใบสมัคร"
-            className="min-h-[56px] w-full rounded-md bg-canvas pl-14 pr-4 text-body text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
-          />
         </div>
 
-        {/* ตัวกรองที่ใช้นาน ๆ ครั้ง พับเก็บไว้ ไม่ให้รกหน้าจอทุกวัน */}
-        <details open={hasExtraFilter} className="mt-3">
-          <summary className="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-caption text-ink-80 hover:text-ink">
-            <SlidersHorizontal aria-hidden className="size-4" />
-            ตัวกรองเพิ่มเติม
-          </summary>
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+          <ExportMenu filteredHref={exportHref} />
+          <DateRangeFilter active={range} hrefFor={(id) => hrefWith({ range: id === "all" ? undefined : id, page: undefined })} />
 
-          <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-parchment p-4 ring-1 ring-hairline ring-inset">
-            <div>
-              <label htmlFor="province" className="block text-fine text-ink-48">
-                จังหวัด
-              </label>
-              <select
-                id="province"
-                name="province"
-                defaultValue={filters.province ?? ""}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
-              >
-                <option value="">ทุกจังหวัด</option>
-                {provinces.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="documents" className="block text-fine text-ink-48">
-                เอกสาร
-              </label>
-              <select
-                id="documents"
-                name="documents"
-                defaultValue={filters.documents ?? ""}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
-              >
-                <option value="">ทั้งหมด</option>
-                <option value="complete">เอกสารครบ</option>
-                <option value="incomplete">เอกสารไม่ครบ</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="sort" className="block text-fine text-ink-48">
-                เรียงลำดับ
-              </label>
-              <select
-                id="sort"
-                name="sort"
-                defaultValue={filters.sort}
-                className="mt-1 min-h-[48px] rounded-md bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-accent-ink"
-              >
-                <option value="oldest">รอนานที่สุดก่อน</option>
-                <option value="newest">เข้ามาล่าสุดก่อน</option>
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="min-h-[48px] rounded-full bg-ink px-6 text-caption text-on-dark transition-opacity hover:opacity-90"
+          {/* แดงทึบใบเดียวบนหน้า และเป็นงานจริงของคิวนี้ ไม่ใช่ปุ่ม "สร้างใบสมัคร" แบบต้นแบบ
+              เจ้าหน้าที่ไม่ได้เป็นคนสร้างใบสมัคร ร้านเป็นคนส่งเข้ามาเอง สิ่งที่คนเปิดหน้านี้
+              อยากทำจริง ๆ คือเปิดใบที่รอนานที่สุดขึ้นมาตรวจ */}
+          {oldestPending ? (
+            <Link
+              href={`/admin/${oldestPending}`}
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-btn bg-brand px-5 text-caption font-semibold text-on-brand shadow-soft transition-colors hover:bg-brand-hover"
             >
-              ใช้ตัวกรอง
-            </button>
+              <ClipboardList aria-hidden className="size-4 shrink-0" />
+              ตรวจใบถัดไป
+            </Link>
+          ) : (
+            <span className="inline-flex min-h-[48px] items-center gap-2 rounded-btn bg-pearl px-5 text-caption font-medium text-ink-48 ring-1 ring-inset ring-hairline">
+              <CircleCheck aria-hidden className="size-4 shrink-0" />
+              ไม่มีใบรอตรวจ
+            </span>
+          )}
+        </div>
+      </div>
 
-            {hasExtraFilter || filters.q ? (
+      <section aria-label="ตัวเลขสรุป" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <QueueTotalCard total={summary.total} trend={summary.totalTrend} icon={ClipboardList} />
+
+        {summary.buckets.map((bucket) => {
+          const style = BUCKET_STYLE[bucket.id];
+          return (
+            <QueueBucketCard
+              key={bucket.id}
+              label={bucket.label}
+              count={bucket.count}
+              trend={bucket.trend}
+              polarity={style.polarity}
+              icon={style.icon}
+              chipClass={style.chip}
+              active={tab === bucket.id}
+              href={hrefWith({ tab: tab === bucket.id ? undefined : bucket.id, page: undefined })}
+            />
+          );
+        })}
+      </section>
+
+      <section className="mt-4 rounded-card bg-canvas shadow-soft ring-1 ring-hairline/70">
+        {/* ช่องค้นหากับสองตัวเลือกอยู่ในฟอร์มเดียว กด "ตัวกรอง" หรือ Enter ก็ยื่นได้เหมือนกัน
+            ตัวกรองที่ตั้งไว้จากลิงก์อื่น (แท็บ ช่วงเวลา) เดินทางมากับ hidden input
+            ไม่งั้นการกดค้นหาจะล้างตัวกรองที่เพิ่งตั้งไปทิ้ง */}
+        <form method="get" action="/admin" className="flex flex-col gap-3 p-6 lg:flex-row lg:items-center">
+          {tab !== "all" ? <input type="hidden" name="tab" value={tab} /> : null}
+          {range !== "all" ? <input type="hidden" name="range" value={range} /> : null}
+          {pageSize !== 20 ? <input type="hidden" name="size" value={pageSize} /> : null}
+
+          <div className="relative min-w-0 flex-1">
+            <label htmlFor="q" className="sr-only">
+              ค้นหาใบสมัคร
+            </label>
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 size-[18px] -translate-y-1/2 text-ink-48"
+            />
+            <input
+              id="q"
+              name="q"
+              type="search"
+              defaultValue={filters.q ?? ""}
+              placeholder="ค้นหาชื่อร้าน เบอร์โทร อีเมล หรือเลขที่ใบสมัคร"
+              className="min-h-[48px] w-full rounded-input bg-canvas pl-12 pr-4 text-caption text-ink ring-1 ring-hairline ring-inset placeholder:text-ink-48 focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-ink"
+            />
+          </div>
+
+          <label htmlFor="province" className="sr-only">
+            จังหวัด
+          </label>
+          <select
+            id="province"
+            name="province"
+            defaultValue={province ?? ""}
+            className="min-h-[48px] rounded-input bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-ink lg:w-48"
+          >
+            <option value="">ทุกจังหวัด</option>
+            {provinces.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="type" className="sr-only">
+            ประเภทร้าน
+          </label>
+          <select
+            id="type"
+            name="type"
+            defaultValue={shopType ?? ""}
+            className="min-h-[48px] rounded-input bg-canvas px-4 text-caption text-ink ring-1 ring-hairline ring-inset focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-ink lg:w-52"
+          >
+            <option value="">ทุกประเภทร้าน</option>
+            {SHOP_TYPES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="submit"
+            className="inline-flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-input bg-canvas px-5 text-caption font-medium text-ink ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl"
+          >
+            <SlidersHorizontal aria-hidden className="size-4" />
+            ตัวกรอง
+          </button>
+        </form>
+
+        {/* ตัวกรองที่ใช้นาน ๆ ครั้งพับเก็บไว้ ทุกปุ่มที่มองเห็นกินความสนใจทุกวัน */}
+        <details open={hasExtraFilter} className="group border-t border-divider-soft px-6 py-3">
+          <summary className="inline-flex min-h-[40px] cursor-pointer list-none items-center gap-2 text-caption text-ink-48 transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+            ตัวกรองเพิ่มเติม
+            <ChevronDown
+              aria-hidden
+              className="size-4 shrink-0 transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <div className="flex flex-wrap items-center gap-2 pb-2 pt-3">
+            {[
+              { value: undefined, label: "เอกสารทั้งหมด" },
+              { value: "complete", label: "เอกสารครบ" },
+              { value: "incomplete", label: "เอกสารไม่ครบ" },
+            ].map((option) => (
               <Link
-                href={`/admin?bucket=${params.bucket ?? bucket.id}`}
-                className="inline-flex min-h-[48px] items-center px-3 text-caption text-ink-48 underline underline-offset-4 hover:text-ink"
+                key={option.label}
+                href={hrefWith({ documents: option.value, page: undefined })}
+                aria-current={documents === option.value ? "true" : undefined}
+                className={`inline-flex min-h-[38px] items-center rounded-full px-4 text-fine transition-colors ${
+                  documents === option.value
+                    ? "bg-nav font-semibold text-white"
+                    : "text-ink-80 ring-1 ring-inset ring-hairline hover:bg-pearl"
+                }`}
               >
-                ล้างทั้งหมด
+                {option.label}
               </Link>
-            ) : null}
+            ))}
+
+            <span aria-hidden className="mx-1 h-5 w-px bg-hairline" />
+
+            {[
+              { value: undefined, label: "รอนานที่สุดก่อน" },
+              { value: "newest", label: "เข้ามาล่าสุดก่อน" },
+            ].map((option) => (
+              <Link
+                key={option.label}
+                href={hrefWith({ sort: option.value, page: undefined })}
+                aria-current={(option.value ?? "oldest") === sort ? "true" : undefined}
+                className={`inline-flex min-h-[38px] items-center rounded-full px-4 text-fine transition-colors ${
+                  (option.value ?? "oldest") === sort
+                    ? "bg-nav font-semibold text-white"
+                    : "text-ink-80 ring-1 ring-inset ring-hairline hover:bg-pearl"
+                }`}
+              >
+                {option.label}
+              </Link>
+            ))}
           </div>
         </details>
-      </form>
 
-      <p className="mt-8 text-caption text-ink-48">
-        {filters.q ? `ผลการค้นหา "${filters.q}" — ` : ""}
-        พบ {total} ใบ
-        {totalPages > 1 ? ` · หน้า ${page} จาก ${totalPages}` : ""}
-      </p>
-
-      {items.length === 0 ? (
-        <p className="mt-4 rounded-lg bg-pearl p-10 text-center text-body text-ink-80 ring-1 ring-hairline ring-inset">
-          ไม่พบใบสมัครในกลุ่มนี้
-        </p>
-      ) : (
-        <ul className="mt-4 space-y-3">
-          {items.map((application) => {
-            const documents = application.documents ?? [];
-            const complete = documentsComplete(documents);
-            const missing = missingCategories(documents);
-            const days = daysSince(application.submittedAt);
-            const urgent = application.status === "New" && days >= 3;
-
+        {/* แท็บเป็นขีดใต้ ไม่ใช่เม็ดยา — สี่กองนี้ซ้ำกับการ์ดด้านบนซึ่งเป็นเม็ดใหญ่อยู่แล้ว
+            ถ้าทำเป็นเม็ดยาอีกชุดจะกลายเป็นสองแถวที่ดังพอ ๆ กันโดยที่ตอบคำถามเดียวกัน */}
+        <nav
+          aria-label="กรองตามสถานะ"
+          className="flex gap-1 overflow-x-auto border-t border-divider-soft px-6"
+        >
+          {tabs.map((item) => {
+            const active = item.id === tab;
             return (
-              <li key={application.applicationId}>
-                <Link
-                  href={`/admin/${application.applicationId}`}
-                  className="flex items-center gap-4 rounded-lg bg-canvas p-5 ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                      {/* ชื่อร้านมาก่อนเลขที่ใบสมัคร — คนจำชื่อร้านได้ ไม่มีใครจำเลข */}
-                      <h2 className="text-body font-semibold">
-                        {application.data?.shop?.name || "ไม่ได้ระบุชื่อร้าน"}
-                      </h2>
-                      <span
-                        className={`inline-flex min-h-[26px] items-center rounded-full px-3 text-fine font-semibold ${statusChipClass(application.status)}`}
-                      >
-                        {STATUS_META[application.status].label}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-caption text-ink-80">
-                      {application.data?.contact?.fullName || "—"}
-                      {application.data?.shop?.address?.province
-                        ? ` · ${application.data.shop.address.province}`
-                        : ""}
-                      {application.data?.contact?.phone
-                        ? ` · ${application.data.contact.phone}`
-                        : ""}
-                    </p>
-
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-fine">
-                      <span className={urgent ? "font-semibold text-accent-ink" : "text-ink-48"}>
-                        {urgent ? (
-                          <AlertCircle aria-hidden className="mr-1 inline size-3.5 align-[-2px]" />
-                        ) : null}
-                        {waitingLabel(days)}
-                      </span>
-                      <span className="text-ink-48">
-                        ส่งเมื่อ{" "}
-                        {application.submittedAt ? thaiDate.format(application.submittedAt) : "—"}
-                      </span>
-                      <span
-                        className={`inline-flex items-center gap-1 ${complete ? "text-ink-48" : "text-accent-ink"}`}
-                      >
-                        {complete ? (
-                          <CircleCheck aria-hidden className="size-3.5" />
-                        ) : (
-                          <TriangleAlert aria-hidden className="size-3.5" />
-                        )}
-                        {complete ? "เอกสารครบ" : `ขาด${missing.map((c) => c.label).join(" และ ")}`}
-                      </span>
-                      <span className="tabular-nums text-ink-48">{application.applicationId}</span>
-                    </div>
-                  </div>
-
-                  <ChevronRight aria-hidden className="size-5 shrink-0 text-ink-48" />
-                </Link>
-              </li>
+              <Link
+                key={item.id}
+                href={hrefWith({ tab: item.id === "all" ? undefined : item.id, page: undefined })}
+                aria-current={active ? "page" : undefined}
+                className={`relative inline-flex min-h-[52px] shrink-0 items-center px-3 text-caption font-medium transition-colors ${
+                  active ? "text-brand-ink" : "text-ink-48 hover:text-ink"
+                }`}
+              >
+                {item.label}
+                <span
+                  aria-hidden
+                  className={`absolute inset-x-2 bottom-0 h-[2px] rounded-full bg-brand transition-opacity ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              </Link>
             );
           })}
-        </ul>
-      )}
-
-      {totalPages > 1 ? (
-        <nav aria-label="แบ่งหน้า" className="mt-8 flex items-center justify-between gap-4">
-          {page > 1 ? (
-            <Link
-              href={pageHref(page - 1)}
-              className="inline-flex min-h-[52px] items-center rounded-full bg-pearl px-6 text-caption text-ink ring-1 ring-hairline ring-inset hover:bg-parchment"
-            >
-              ← หน้าก่อนหน้า
-            </Link>
-          ) : (
-            <span />
-          )}
-          {page < totalPages ? (
-            <Link
-              href={pageHref(page + 1)}
-              className="inline-flex min-h-[52px] items-center rounded-full bg-pearl px-6 text-caption text-ink ring-1 ring-hairline ring-inset hover:bg-parchment"
-            >
-              หน้าถัดไป →
-            </Link>
-          ) : (
-            <span />
-          )}
         </nav>
-      ) : null}
+
+        <QueueTable rows={listed.items.map(toRow)} />
+
+        <QueuePagination
+          page={listed.page}
+          pageSize={pageSize}
+          total={listed.total}
+          pageHref={(n) => hrefWith({ page: n === 1 ? undefined : n })}
+          pageSizeHref={(size) => hrefWith({ size, page: undefined })}
+        />
+      </section>
     </main>
   );
+}
+
+type ListedApplication = Awaited<ReturnType<typeof listAllApplications>>["items"][number];
+
+function toRow(application: ListedApplication): QueueRow {
+  return {
+    applicationId: application.applicationId ?? "",
+    shopName: application.data?.shop?.name || "ไม่ได้ระบุชื่อร้าน",
+    shopType: application.data?.shop?.type || "",
+    contactName: application.data?.contact?.fullName || "—",
+    phone: application.data?.contact?.phone || "",
+    province: application.data?.shop?.address?.province || "",
+    status: application.status as ApplicationStatus,
+    submittedAt: application.submittedAt ?? null,
+    documents: application.documents ?? [],
+  };
 }

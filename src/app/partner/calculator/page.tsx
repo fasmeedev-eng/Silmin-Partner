@@ -1,3 +1,4 @@
+import { Calculator } from "lucide-react";
 import { auth } from "@/auth";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -18,14 +19,25 @@ export default async function PartnerCalculatorPage() {
         isActivePartner
       />
 
-      <main className="mx-auto w-full max-w-[1040px] px-6 py-12 sm:px-8 sm:py-16">
-        <h1 className="text-h3 sm:text-h2">คำนวณผ่อนมือถือ</h1>
-        <p className="mt-4 max-w-[56ch] text-body text-ink-80">
-          ใส่ราคาเครื่องและเงินดาวน์ เพื่อดูยอดผ่อนต่อเดือนคร่าว ๆ สำหรับแนะนำลูกค้าที่หน้าร้าน
-        </p>
+      <main className="surface-tint min-h-svh">
+        <div className="mx-auto w-full max-w-[1080px] px-6 py-12 lg:px-8 lg:py-16">
+          <div className="flex items-center gap-4">
+            <span
+              aria-hidden
+              className="flex size-12 shrink-0 items-center justify-center rounded-input bg-brand text-on-brand"
+            >
+              <Calculator className="size-[22px]" strokeWidth={2} />
+            </span>
+            <h1 className="text-h3 font-bold leading-[1.32]">คำนวณผ่อนมือถือ</h1>
+          </div>
 
-        <div className="mt-10">
-          <InstallmentCalculator />
+          <p className="mt-5 max-w-[58ch] text-lead text-ink-80">
+            ใส่ราคาเครื่องและเงินดาวน์ เพื่อดูยอดผ่อนต่อเดือนคร่าว ๆ สำหรับแนะนำลูกค้าที่หน้าร้าน
+          </p>
+
+          <div className="mt-10">
+            <InstallmentCalculator />
+          </div>
         </div>
       </main>
 
