@@ -14,13 +14,13 @@ const plexThai = IBM_Plex_Sans_Thai({
 
 export const metadata: Metadata = {
   title: {
-    default: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG Partner",
-    template: "%s | SG Partner",
+    default: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG PLUS Partner",
+    template: "%s | SG PLUS Partner",
   },
   description:
-    "สมัครเป็นร้านค้าพาร์ทเนอร์กับ SG กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ทีมงานตรวจสอบและติดต่อกลับภายใน 3 วันทำการ",
+    "สมัครเป็นร้านค้าพาร์ทเนอร์กับ SG PLUS กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ทีมงานตรวจสอบและติดต่อกลับภายใน 3 วันทำการ",
   openGraph: {
-    title: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG Partner",
+    title: "สมัครเป็นร้านค้าพาร์ทเนอร์ | SG PLUS Partner",
     description:
       "กรอกใบสมัครออนไลน์ใน 2–3 นาที ไม่มีค่าสมัคร ติดตามสถานะได้ด้วยตัวเอง",
     locale: "th_TH",

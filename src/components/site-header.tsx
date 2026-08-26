@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calculator, LogOut, SquarePen, UserRound } from "lucide-react";
+import { Calculator, LayoutDashboard, LogOut, SquarePen, UserRound } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { AuthCta } from "@/components/auth/auth-cta";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -28,15 +28,22 @@ export async function SiteHeader({
   /** ร้านมีใบสมัครถึงสถานะ ActivePartner แล้ว (หรือ admin) — เปิดปุ่มเครื่องคำนวณผ่อนบน navbar */
   isActivePartner?: boolean;
   /**
-   * แสดงเมนูลิงก์ไปยังส่วนต่าง ๆ ของหน้าแรก — เปิดเฉพาะหน้าแรกเท่านั้น
-   * หน้าอื่น (กรอกใบสมัคร ติดตามสถานะ) ผู้ใช้กำลังทำงานอยู่ เมนูการตลาดตรงนั้นเป็นสิ่งรบกวน
-   * และเพราะเปิดเฉพาะหน้าแรก จึงรู้ได้เลยว่า "หน้าหลัก" คือรายการที่ active โดยไม่ต้องอ่าน pathname
-   * (ซึ่งจะบังคับให้คอมโพเนนต์นี้กลายเป็น client component และเสีย server action ของปุ่มออกจากระบบ)
+   * แสดงเมนูลิงก์ไปยังส่วนต่าง ๆ ของหน้าแรก — ค่าเริ่มต้นปิด เพราะหน้าที่ผู้ใช้กำลังทำงานอยู่
+   * (กรอกใบสมัคร ติดตามสถานะ) เมนูการตลาดตรงนั้นเป็นสิ่งรบกวน
+   *
+   * เปิดได้บนหน้าอื่นด้วยถ้าอยากได้แถบแบบเดียวกับหน้าแรกเป๊ะ ๆ (เช่น /partner/calculator) แต่ต้องรู้
+   * ข้อจำกัดนี้ไว้ก่อน: รายการยังไม่รู้ pathname จริง "หน้าหลัก" จึงติด active เสมอไม่ว่าอยู่หน้าไหน
+   * เพราะการอ่าน pathname ต้องพึ่ง usePathname ซึ่งบังคับให้คอมโพเนนต์นี้กลายเป็น client component
+   * และเสีย server action ของปุ่มออกจากระบบไป — ยอมรับข้อจำกัดนี้แทนที่จะแยก client component ย่อยเพิ่ม
    */
   sectionNav?: boolean;
 }) {
   // เจ้าหน้าที่ต้องมีทางเข้าหลังบ้านที่กดได้ ไม่ใช่ต้องจำ URL เอง
   const isStaff = role === "admin" || role === "employee";
+  // ปุ่มกลุ่มนี้โผล่บนแถบเฉพาะ lg ขึ้นไป — ต้องรู้ก่อนว่ามีอะไรจะโผล่บ้าง เพื่อวาดเส้นคั่นให้ถูก
+  // และส่งชุดเดียวกันไปให้แผงมือถือ (ซึ่งกันซ้ำเองด้วย lg:hidden ในปุ่มแต่ละอัน)
+  const showBackOfficeLink = isStaff && !sectionNav;
+  const hasUtilityLinks = showBackOfficeLink || isActivePartner;
 
   const session = signedIn ? await auth() : null;
   const notifications = session?.user?.id
@@ -65,11 +72,11 @@ export async function SiteHeader({
     <header className="sticky top-0 z-9999 border-b border-white/[0.08] bg-nav text-white">
       <nav
         aria-label="เมนูหลัก"
-        className="relative mx-auto flex h-20 w-full max-w-[1280px] items-center gap-6 px-6 lg:px-8"
+        className="relative mx-auto flex h-20 w-full max-w-[1280px] items-center gap-8 px-6 lg:px-8"
       >
         <Link
           href="/"
-          aria-label="SG Partner — กลับหน้าแรก"
+          aria-label="SG PLUS Partner — กลับหน้าแรก"
           className="rounded-sm focus-visible:outline-white"
         >
           <BrandLogo tone="dark" />
@@ -108,42 +115,54 @@ export async function SiteHeader({
         ) : null}
 
         <div
-          className={`ml-auto flex items-center gap-2.5 ${sectionNav ? "xl:ml-8" : ""}`}
+          className={`ml-auto flex items-center gap-3 ${sectionNav ? "xl:ml-8" : ""}`}
         >
           {signedIn ? (
             <>
-              {/* ซ่อน/แสดงด้วย wrapper ไม่ใช่คลาสบนตัวปุ่มเอง — ctaClass ใส่ inline-flex มาแล้ว
-                  การเติม hidden เข้าไปในคลาสเดียวกันคือ display สองค่าชนกัน ผลลัพธ์ขึ้นกับ
-                  ลำดับที่ Tailwind ปล่อย utility ออกมา ไม่ใช่ลำดับที่เขียน จึงเดาไม่ได้
+              {/* เมนูใช้งาน (หลังบ้าน/คำนวณผ่อน) โผล่จาก lg เท่านั้น ไม่ใช่ sm — จอแท็บเล็ต
+                  (640–1023) มีตัวเลือกอื่นในแถบอยู่แล้ว (ใบสมัครของฉัน/กระดิ่ง/บัญชี) ถ้าโผล่ตั้งแต่
+                  sm ทุกอย่างจะเบียดกันจนอ่านเป็นแถวเดียวไม่ออกกลุ่ม ต่ำกว่า lg ไปอยู่ในแฮมเบอร์เกอร์แทน
+                  (ดู MobileNav — แต่ละปุ่มกันการโผล่ซ้ำเองด้วย lg:hidden)
 
-                  บนหน้าแรกไม่แสดงปุ่มนี้บนแถบ (ยังอยู่ในเมนูแฮมเบอร์เกอร์) — พื้นที่ถูกเมนูห้ารายการ
-                  กินไปแล้ว และ "หลังบ้าน" ไม่ใช่สิ่งที่คนมาหน้าแรกกำลังมองหา หน้าอื่นแสดงตามปกติ */}
-              {isStaff && !sectionNav ? (
-                <div className="hidden sm:block">
-                  <Link href="/admin" className={ctaClass("nav-ghost")}>
-                    หลังบ้าน
-                  </Link>
+                  บนหน้าแรก "หลังบ้าน" ไม่ขึ้นบนแถบเลยไม่ว่าจอกว้างแค่ไหน (ยังอยู่ในแฮมเบอร์เกอร์เท่านั้น)
+                  เพราะพื้นที่ถูกเมนูห้ารายการกินไปแล้ว และไม่ใช่สิ่งที่คนมาหน้าแรกกำลังมองหา */}
+              {hasUtilityLinks ? (
+                <div className="hidden items-center gap-2 lg:flex">
+                  {showBackOfficeLink ? (
+                    <Link href="/admin" className={ctaClass("nav-ghost")}>
+                      <LayoutDashboard aria-hidden className="size-4" />
+                      หลังบ้าน
+                    </Link>
+                  ) : null}
+                  {isActivePartner ? (
+                    <Link href="/partner/calculator" className={ctaClass("nav-ghost")}>
+                      <Calculator aria-hidden className="size-4" />
+                      คำนวณผ่อนมือถือ
+                    </Link>
+                  ) : null}
                 </div>
               ) : null}
 
-              {/* เฉพาะร้านที่เป็นพาร์ทเนอร์แล้วเท่านั้น (หรือ admin) — ดู isActivePartnerUser */}
-              {isActivePartner ? (
-                <div className="hidden sm:block">
-                  <Link href="/partner/calculator" className={ctaClass("nav-ghost")}>
-                    <Calculator aria-hidden className="size-4" />
-                    <span className="hidden sm:inline">คำนวณผ่อนมือถือ</span>
-                  </Link>
-                </div>
+              {/* เส้นคั่นกลุ่มที่สอง — แยก "เครื่องมือใช้งาน" ออกจาก "ปุ่มหลัก" ให้เห็นเป็นสองกลุ่ม
+                  ไม่ใช่แถวปุ่มยาวเส้นเดียว โผล่พร้อมกลุ่มที่มันคั่นเท่านั้น ไม่งั้นจะเหลือเส้นคั่นลอย ๆ */}
+              {hasUtilityLinks ? (
+                <span aria-hidden className="hidden h-7 w-px bg-white/15 lg:block" />
               ) : null}
 
-              <AuthCta signedIn href="/me" variant="nav-brand">
-                <SquarePen aria-hidden className="size-4" />
-                <span className="hidden sm:inline">ใบสมัครของฉัน</span>
-              </AuthCta>
+              {/* ซ่อนด้วย wrapper ไม่ใช่คลาสบนปุ่มเอง (ctaClass ใส่ inline-flex มาแล้ว — เติม hidden
+                  เข้าไปตรง ๆ คือ display สองค่าชนกัน ผลลัพธ์เดาไม่ได้ ดูเหตุผลเดียวกันที่ปุ่ม
+                  "เข้าสู่ระบบ" ด้านล่าง) จอมือถือ (ต่ำกว่า sm) ปุ่มนี้ย้ายไปอยู่ในแฮมเบอร์เกอร์แทน
+                  เพราะบนจอแคบมันแย่งที่กับกระดิ่ง/บัญชี — ดู MobileNav actions ด้านล่าง */}
+              <div className="hidden sm:block">
+                <AuthCta signedIn href="/me" variant="nav-brand">
+                  <SquarePen aria-hidden className="size-4" />
+                  ใบสมัครของฉัน
+                </AuthCta>
+              </div>
 
-              {/* กลุ่มบัญชีแยกจากเมนูใช้งานด้วยเส้นคั่น — สองกลุ่มนี้ตอบคนละคำถาม
+              {/* กลุ่มบัญชีแยกจากปุ่มหลักด้วยเส้นคั่น — สองกลุ่มนี้ตอบคนละคำถาม
                   (จะไปหน้าไหน vs กำลังใช้บัญชีใคร) คนที่มีหลาย Google account ต้องเห็นอีเมล */}
-              <span aria-hidden className="mx-0.5 hidden h-7 w-px bg-white/15 sm:block" />
+              <span aria-hidden className="hidden h-7 w-px bg-white/15 sm:block" />
 
               {notifications ? (
                 <NotificationBell
@@ -209,42 +228,61 @@ export async function SiteHeader({
             </>
           )}
 
-          {sectionNav ? (
+          {/* แผงมือถือขึ้นเมื่อมีอะไรต้องเก็บจริง ๆ เท่านั้น — ลูกค้าที่ล็อกอินอยู่มีอย่างน้อย
+              "ใบสมัครของฉัน" ที่ย้ายไปเก็บตอนจอมือถือเสมอ (ดู threshold ด้านล่าง) ผู้ที่ยังไม่ล็อกอิน
+              และไม่ใช่หน้าแรกไม่มีอะไรต้องเก็บเลยไม่ควรเห็นไอคอนแฮมเบอร์เกอร์ที่กดแล้วไม่มีอะไรอยู่ข้างใน */}
+          {sectionNav || signedIn ? (
             <MobileNav
+              showSectionLinks={sectionNav}
+              // จุดที่แผงต้องเริ่มรับช่วง เลือกจากของที่ "หนักที่สุด" ที่มันเก็บอยู่:
+              // เมนูห้ารายการ (xl) > ปุ่มใช้งานหลังบ้าน/คำนวณผ่อน (lg) > แค่ "ใบสมัครของฉัน" (sm)
+              breakpoint={sectionNav ? "xl" : hasUtilityLinks ? "lg" : "sm"}
               actions={
-                signedIn ? (
-                  <>
-                    {isStaff ? (
-                      <Link href="/admin" className={ctaClass("nav-ghost", "w-full")}>
-                        หลังบ้าน
-                      </Link>
-                    ) : null}
-                    {isActivePartner ? (
-                      <Link
-                        href="/partner/calculator"
-                        className={ctaClass("nav-ghost", "w-full")}
-                      >
-                        <Calculator aria-hidden className="size-4" />
-                        คำนวณผ่อนมือถือ
-                      </Link>
-                    ) : null}
-                    {email ? (
-                      <p className="truncate pt-1 text-fine text-white/45">{email}</p>
-                    ) : null}
-                    {signOutButton}
-                  </>
-                ) : (
-                  <AuthCta
-                    signedIn={false}
-                    href="/me"
-                    loginRedirect="/after-login"
-                    variant="nav-ghost"
-                    className="w-full"
-                  >
-                    <UserRound aria-hidden className="size-4" />
-                    เข้าสู่ระบบ
-                  </AuthCta>
-                )
+                <>
+                  {isStaff ? (
+                    <Link
+                      href="/admin"
+                      className={ctaClass("nav-ghost", `w-full ${sectionNav ? "" : "lg:hidden"}`)}
+                    >
+                      <LayoutDashboard aria-hidden className="size-4" />
+                      หลังบ้าน
+                    </Link>
+                  ) : null}
+                  {isActivePartner ? (
+                    <Link
+                      href="/partner/calculator"
+                      className={ctaClass("nav-ghost", "w-full lg:hidden")}
+                    >
+                      <Calculator aria-hidden className="size-4" />
+                      คำนวณผ่อนมือถือ
+                    </Link>
+                  ) : null}
+                  {/* ปุ่มหลักย้ายมาที่นี่เฉพาะจอมือถือ (ต่ำกว่า sm) — sm:hidden กันไม่ให้ซ้ำกับ
+                      ตัวที่โผล่บนแถบแล้วตั้งแต่ sm ขึ้นไป (ดู wrapper ของปุ่มนี้ด้านบน) */}
+                  {signedIn ? (
+                    <Link href="/me" className={ctaClass("nav-brand", "w-full sm:hidden")}>
+                      <SquarePen aria-hidden className="size-4" />
+                      ใบสมัครของฉัน
+                    </Link>
+                  ) : null}
+                  {/* อีเมล/ออกจากระบบ อยู่ในแผงเฉพาะหน้าแรก — หน้าอื่นมีกลุ่มบัญชีโชว์อยู่แล้วตั้งแต่ sm */}
+                  {sectionNav && signedIn && email ? (
+                    <p className="truncate pt-1 text-fine text-white/45">{email}</p>
+                  ) : null}
+                  {sectionNav && signedIn ? signOutButton : null}
+                  {sectionNav && !signedIn ? (
+                    <AuthCta
+                      signedIn={false}
+                      href="/me"
+                      loginRedirect="/after-login"
+                      variant="nav-ghost"
+                      className="w-full"
+                    >
+                      <UserRound aria-hidden className="size-4" />
+                      เข้าสู่ระบบ
+                    </AuthCta>
+                  ) : null}
+                </>
               }
             />
           ) : null}

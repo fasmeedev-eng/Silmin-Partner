@@ -225,7 +225,7 @@ components:
 
 ## Overview
 
-SG Partner is a Thai-language application system for mobile-phone retailers, entered by scanning a QR code in a shop. The design language was set by the landing page and then carried, unchanged, through every other surface: the application form, the applicant's status pages, the installment calculator, the sign-in screens, and the whole back office.
+SG PLUS Partner is a Thai-language application system for mobile-phone retailers, entered by scanning a QR code in a shop. The design language was set by the landing page and then carried, unchanged, through every other surface: the application form, the applicant's status pages, the installment calculator, the sign-in screens, and the whole back office.
 
 The system runs on **four colours used in deliberately unequal amounts**. White is the ground. Near-black `{colors.nav}` is structure — navigation, footer, type, and anything that means "settled" or "selected". Gold `{colors.gold}` is highlight. Red `{colors.brand}` is action. The ratio is the design: spread red and gold evenly and the result reads as a discount flyer, which is the single easiest way to wreck it.
 

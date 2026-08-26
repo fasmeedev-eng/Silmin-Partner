@@ -14,7 +14,6 @@ export interface NavLink {
 
 export const SECTION_LINKS: readonly NavLink[] = [
   { href: "/#top", label: "หน้าหลัก" },
-  { href: "/#benefits", label: "สิทธิประโยชน์" },
   { href: "/#process", label: "ขั้นตอนการสมัคร" },
   { href: "/#faq", label: "คำถามที่พบบ่อย" },
   { href: "/#contact", label: "ติดต่อเรา" },

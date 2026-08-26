@@ -68,7 +68,7 @@ export default async function AdminLayout({
         signOutButton={signOutDark}
         pendingCount={statusCounts.New ?? 0}
       />
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         <AdminTopbar
           role={staff.role}
           email={staff.email}

@@ -35,6 +35,7 @@ export default async function ApplyPage() {
         email={session.user.email}
         role={session.user.role}
         isActivePartner={isActivePartner}
+        sectionNav
       />
       {/* พื้นอุ่นเดียวกับแบนเนอร์ — การ์ดฟอร์มสีขาวจึงอ่านออกว่าเป็นอีกระนาบหนึ่ง
           min-h-svh กันไม่ให้พื้นขาวโผล่ใต้ฟอร์มตอนขั้นที่เนื้อหาสั้น ๆ */}

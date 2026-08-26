@@ -26,7 +26,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
               โครงการร้านค้าพาร์ทเนอร์
             </p>
 
-            <h1 className="mt-6 max-w-[15ch] text-h2 font-bold leading-[1.28] sm:text-display">
+            <h1 className="mt-6 max-w-[17ch] text-h2 font-bold leading-[1.28] sm:text-display">
               ให้ร้านของคุณเป็นพาร์ทเนอร์{" "}
               {/* ไล่เฉดทอง→แดงตาม brief แทนทองล้วน — ทองสด #FFD84D บนขาวได้แค่ 1.5:1
                   อ่านไม่ออกจริง ปลายทองจึงเริ่มที่ --gold-deep (~3.2:1) แล้วไล่ไปจบที่แดง
@@ -38,7 +38,7 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
                     "linear-gradient(100deg, var(--gold-deep) 0%, var(--brand) 92%)",
                 }}
               >
-                SG
+                SG PLUS
               </span>
             </h1>
 

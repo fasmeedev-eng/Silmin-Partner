@@ -36,6 +36,7 @@ export default async function MyApplicationsPage() {
         email={session.user.email}
         role={session.user.role}
         isActivePartner={isActivePartner}
+        sectionNav
       />
 
       <main className="surface-tint min-h-svh">

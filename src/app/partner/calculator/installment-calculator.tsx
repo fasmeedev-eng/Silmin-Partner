@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Info } from "lucide-react";
+import { Check, Copy, Lightbulb, Printer, Wallet } from "lucide-react";
 import { Field, TextInput } from "@/components/ui/form-fields";
 
 /**
@@ -18,7 +18,7 @@ const INSTALLMENT_PLANS = [
 ] as const;
 
 /** เปอร์เซ็นต์ดาวน์ที่ใช้บ่อยหน้าร้าน — กดทีเดียวแทนการพิมพ์ทั้งสองช่อง */
-const QUICK_DOWN_PERCENTS = [0, 10, 20, 30] as const;
+const QUICK_DOWN_PERCENTS = [0, 10, 20, 30, 40] as const;
 
 const baht = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 0 });
 
@@ -72,15 +72,17 @@ export function InstallmentCalculator() {
     const total = financed * (1 + plan.addOnRatePercent / 100);
     return { ...plan, monthly: Math.round(total / plan.months) };
   });
+  // แผนที่ดอกเบี้ยต่ำที่สุด = ประหยัดที่สุดสำหรับลูกค้า — ใช้ข้อมูลอัตราจริงที่มีอยู่แล้ว ไม่ใช่ค่าที่เดาใหม่
+  const cheapestRate = Math.min(...rows.map((r) => r.addOnRatePercent));
 
   const handleCopy = async () => {
     const lines = [
-      `ราคาเครื่อง: ${baht.format(priceNum)} บาท`,
+      `ราคามือถือ: ${baht.format(priceNum)} บาท`,
       `เงินดาวน์: ${baht.format(downAmountNum)} บาท (${downPercentDisplay}%)`,
-      `ยอดที่ต้องผ่อน: ${baht.format(financed)} บาท`,
+      `ยอดจัดไฟแนนซ์: ${baht.format(financed)} บาท`,
       "",
-      "งวดผ่อน\tผ่อนต่อเดือน",
-      ...rows.map((r) => `${r.months} งวด\t${baht.format(r.monthly)} บาท`),
+      "งวดผ่อน\tผ่อนต่อเดือน\tดอกเบี้ยโดยประมาณ",
+      ...rows.map((r) => `${r.months} งวด\t${baht.format(r.monthly)} บาท\t${r.addOnRatePercent}%`),
     ];
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
@@ -94,11 +96,19 @@ export function InstallmentCalculator() {
   return (
     // สองคอลัมน์บนจอกว้าง: กรอกทางซ้าย เห็นผลทางขวาพร้อมกัน ไม่ต้องเลื่อนไปมาระหว่างคุยกับลูกค้า
     // จอแคบเรียงลงมา ผลลัพธ์อยู่ใต้ช่องกรอกตามลำดับที่คนใช้จริง
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] print:block">
       {/* ── ช่องกรอก ─────────────────────────────────────────── */}
-      <div className="rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7">
+      <div className="rounded-card bg-canvas p-6 shadow-soft ring-1 ring-hairline/70 sm:p-7 print:hidden">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-body font-semibold">ข้อมูลเครื่อง</h2>
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-input bg-brand-soft text-brand-ink ring-1 ring-inset ring-brand/15"
+            >
+              <Wallet className="size-[18px]" strokeWidth={2} />
+            </span>
+            <h2 className="text-body font-semibold">ข้อมูลเครื่องและการชำระ</h2>
+          </div>
           {price || downAmount ? (
             <button
               type="button"
@@ -110,24 +120,23 @@ export function InstallmentCalculator() {
           ) : null}
         </div>
 
-        <div className="mt-5 space-y-6">
-          <Field id="price" label="ราคาเครื่อง (บาท)">
+        <div className="mt-6 space-y-6">
+          <Field id="price" label="ราคามือถือ (บาท)">
             <div className="relative">
-              {/* สัญลักษณ์เงินบาทอยู่ในช่อง ไม่ใช่ใน label — บอกหน่วยตรงจุดที่กำลังพิมพ์ */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-body text-ink-48"
-              >
-                ฿
-              </span>
               <TextInput
                 id="price"
                 value={price}
                 onChange={handlePriceChange}
                 inputMode="numeric"
                 placeholder="0"
-                className="pl-9 text-lead font-semibold tabular-nums"
+                className=" w-full border border-gray-200 pl-2 rounded-sm text-lead font-semibold tabular-nums"
               />
+              {/* หน่วยอยู่ในช่อง ไม่ใช่ใน label — บอกหน่วยตรงจุดที่กำลังพิมพ์ */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-body text-ink-48"
+              >
+              </span>
             </div>
           </Field>
 
@@ -146,8 +155,8 @@ export function InstallmentCalculator() {
                     onClick={() => handleDownPercentChange(String(percent))}
                     aria-pressed={active}
                     className={`min-h-[40px] rounded-btn px-4 text-caption font-medium tabular-nums transition-all disabled:pointer-events-none disabled:opacity-40 ${active
-                        ? "bg-ink text-white"
-                        : "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset hover:bg-canvas hover:ring-ink-48/30"
+                      ? "bg-ink text-white"
+                      : "bg-pearl text-ink-80 ring-1 ring-hairline ring-inset hover:bg-canvas hover:ring-ink-48/30"
                       }`}
                   >
                     {percent}%
@@ -156,7 +165,7 @@ export function InstallmentCalculator() {
               })}
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2  gap-3">
               <Field id="down-amount" label="จำนวนเงินดาวน์ (บาท)">
                 <TextInput
                   id="down-amount"
@@ -164,7 +173,7 @@ export function InstallmentCalculator() {
                   onChange={handleDownAmountChange}
                   inputMode="numeric"
                   placeholder="0"
-                  className="tabular-nums"
+                  className="tabular-nums pl-2 rounded-sm border border-gray-200"
                 />
               </Field>
               <Field id="down-percent" label="เปอร์เซ็นต์ (%)">
@@ -174,84 +183,139 @@ export function InstallmentCalculator() {
                   onChange={handleDownPercentChange}
                   inputMode="decimal"
                   placeholder="0"
-                  className="tabular-nums"
+                  className="tabular-nums pl-2 rounded-sm border border-gray-200"
                 />
               </Field>
             </div>
           </div>
+
+          {/* ยอดจัดไฟแนนซ์ซ้ำอีกครั้งทางฝั่งกรอก — ตัวเลขเดียวกับทางขวา แค่ให้เห็นระหว่างกำลังพิมพ์ */}
+          <div className="flex items-center justify-between gap-4 rounded-input bg-pearl px-4 py-3.5 ring-1 ring-hairline ring-inset">
+            <span className="flex items-center gap-2 text-caption font-medium text-ink-80">
+              <Wallet aria-hidden className="size-4 shrink-0 text-ink-48" strokeWidth={1.9} />
+              ยอดจัดไฟแนนซ์
+            </span>
+            <span className="text-body font-bold tabular-nums text-gold-ink">
+              {baht.format(financed)} บาท
+            </span>
+          </div>
         </div>
 
-        <p className="mt-7 flex items-start gap-2.5 rounded-input bg-pearl p-4 text-fine leading-[1.7] text-ink-48 ring-1 ring-hairline ring-inset">
-          <Info aria-hidden className="mt-px size-4 shrink-0" strokeWidth={1.9} />
-          อัตราที่ใช้คำนวณเป็นตัวเลขประมาณการตามมาตรฐานทั่วไป ใช้เป็นแนวทางคร่าว ๆ ให้ลูกค้าดูหน้าร้าน
-          ไม่ใช่อัตราดอกเบี้ยที่ยืนยันจากบริษัทไฟแนนซ์จริง
+        <p className="mt-6 flex items-start gap-2.5 rounded-input bg-gold-soft p-4 text-fine leading-[1.7] text-gold-ink ring-1 ring-gold/20 ring-inset">
+          <Lightbulb aria-hidden className="mt-px size-4 shrink-0" strokeWidth={1.9} />
+          อัตรานี้ใช้สำหรับการประเมินเบื้องต้นเท่านั้น
+          เงื่อนไขเป็นไปตามที่บริษัทกำหนด
         </p>
       </div>
 
       {/* ── ผลลัพธ์ ───────────────────────────────────────────
           พื้นดำเพราะตัวเลขคือของที่ต้องอ่านจากระยะหนึ่งเมตรตอนหันจอให้ลูกค้าดู
           ทองบนดำได้คอนทราสต์ ~13:1 สูงกว่าอะไรก็ตามที่วางบนพื้นขาวได้ */}
-      <div className="overflow-hidden rounded-card bg-nav text-white shadow-soft">
-        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
-          <h2 className="text-body font-semibold">ตารางยอดผ่อน</h2>
-          {canCalculate ? (
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-btn bg-white/10 px-4 text-caption font-semibold transition-colors hover:bg-white/20 focus-visible:outline-white"
+      <div className="overflow-hidden rounded-card bg-nav text-white shadow-soft print:rounded-none print:bg-white print:text-ink print:shadow-none">
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5 print:border-hairline">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-input bg-white/10 text-gold print:hidden"
             >
-              {copied ? (
-                <Check aria-hidden className="size-4 text-gold" strokeWidth={2.5} />
-              ) : (
-                <Copy aria-hidden className="size-4" />
-              )}
-              {copied ? "คัดลอกแล้ว" : "คัดลอก"}
-            </button>
+              <Wallet className="size-[18px]" strokeWidth={2} />
+            </span>
+            <div>
+              <h2 className="text-body font-semibold">ตารางยอดผ่อน</h2>
+              <p className="mt-0.5 text-fine text-white/45 print:text-ink-48">
+                เลือกดูยอดผ่อนที่เหมาะสมกับลูกค้า
+              </p>
+            </div>
+          </div>
+
+          {canCalculate ? (
+            <div className="flex items-center gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={copied ? "คัดลอกแล้ว" : "คัดลอกตาราง"}
+                title="คัดลอกตาราง"
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-btn bg-white/10 transition-colors hover:bg-white/20 focus-visible:outline-white"
+              >
+                {copied ? (
+                  <Check aria-hidden className="size-4 text-gold" strokeWidth={2.5} />
+                ) : (
+                  <Copy aria-hidden className="size-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex min-h-[40px] items-center gap-2 rounded-btn bg-white/10 px-4 text-caption font-semibold transition-colors hover:bg-white/20 focus-visible:outline-white"
+              >
+                <Printer aria-hidden className="size-4" />
+                พิมพ์ตาราง
+              </button>
+            </div>
           ) : null}
         </div>
 
         {canCalculate ? (
           <>
-            {/* สรุปสามตัวเลขที่ตารางไม่ได้บอก — โดยเฉพาะ "ยอดที่ต้องผ่อน" ซึ่งเป็นฐานของทุกงวด
+            {/* สรุปสามตัวเลขที่ตารางไม่ได้บอก — โดยเฉพาะ "ยอดจัดไฟแนนซ์" ซึ่งเป็นฐานของทุกงวด
                 ถ้าไม่แสดง ลูกค้าจะไม่เข้าใจว่าตัวเลขรายเดือนคิดมาจากอะไร */}
-            <dl className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-              <SummaryCell label="ราคาเครื่อง" value={baht.format(priceNum)} />
+            <dl className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10 print:divide-hairline print:border-hairline">
+              <SummaryCell label="ราคามือถือ" value={baht.format(priceNum)} />
               <SummaryCell
                 label="เงินดาวน์"
                 value={baht.format(downAmountNum)}
                 note={`${downPercentDisplay}%`}
               />
-              <SummaryCell label="ยอดที่ต้องผ่อน" value={baht.format(financed)} highlight />
+              <SummaryCell label="ยอดจัดไฟแนนซ์" value={baht.format(financed)} highlight />
             </dl>
 
             <table className="w-full">
               <caption className="sr-only">
-                ยอดผ่อนต่อเดือนแยกตามจำนวนงวด คำนวณจากยอดที่ต้องผ่อน{" "}
-                {baht.format(financed)} บาท
+                ยอดผ่อนต่อเดือนแยกตามจำนวนงวด คำนวณจากยอดจัดไฟแนนซ์ {baht.format(financed)} บาท
               </caption>
               <thead>
-                <tr className="text-fine text-white/45">
+                <tr className="text-fine text-white/45 print:text-ink-48">
                   <th scope="col" className="px-6 pt-4 text-left font-normal">
                     งวดผ่อน
                   </th>
                   <th scope="col" className="px-6 pt-4 text-right font-normal">
-                    ผ่อนต่อเดือน
+                    ค่างวดต่อเดือน
+                  </th>
+                  <th scope="col" className="px-6 pt-4 text-right font-normal">
+                    ดอกเบี้ยโดยประมาณ
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.months} className="border-t border-white/[0.07]">
+                  <tr
+                    key={row.months}
+                    className="border-t border-white/[0.07] print:border-hairline"
+                  >
                     <th scope="row" className="px-6 py-4 text-left text-body font-normal">
                       {row.months} งวด
                     </th>
-                    <td className="px-6 py-4 text-right text-lead font-semibold tabular-nums text-gold">
+                    <td className="px-6 py-4 text-right text-lead font-semibold tabular-nums text-gold print:text-ink">
                       {baht.format(row.monthly)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-caption tabular-nums text-white/70 print:text-ink-80">
+                      <span className="inline-flex items-center gap-2">
+                        {row.addOnRatePercent}%
+                        {row.addOnRatePercent === cheapestRate ? (
+                          <span className="rounded-full bg-brand px-2 py-0.5 text-fine font-semibold text-on-brand">
+                            แนะนำ
+                          </span>
+                        ) : null}
+                      </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            <p className="border-t border-white/10 px-6 py-4 text-fine leading-[1.7] text-white/45 print:border-hairline print:text-ink-48">
+              หมายเหตุ: อัตราดอกเบี้ยและยอดผ่อนอาจเปลี่ยนแปลงได้ตามเงื่อนไขของบริษัทฯ
+            </p>
           </>
         ) : (
           // ไม่เขียนว่า "ทางซ้าย" — จอแคบช่องกรอกอยู่ด้านบน ไม่ใช่ด้านซ้าย คำบอกทิศทางจะผิดทันที
@@ -279,13 +343,17 @@ function SummaryCell({
 }) {
   return (
     <div className="px-4 py-4 text-center">
-      <dt className="text-fine text-white/45">{label}</dt>
+      <dt className="text-fine text-white/45 print:text-ink-48">{label}</dt>
       <dd
-        className={`mt-1 text-body font-semibold tabular-nums ${highlight ? "text-gold" : "text-white"
+        className={`mt-1 text-body font-semibold tabular-nums ${highlight ? "text-gold print:text-brand" : "text-white print:text-ink"
           }`}
       >
         {value}
-        {note ? <span className="pl-1.5 text-fine font-normal text-white/45">{note}</span> : null}
+        {note ? (
+          <span className="pl-1.5 text-fine font-normal text-white/45 print:text-ink-48">
+            {note}
+          </span>
+        ) : null}
       </dd>
     </div>
   );

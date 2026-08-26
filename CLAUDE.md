@@ -103,7 +103,7 @@ Upload validation (JPG/PNG/PDF, size and count caps) has to be enforced server-s
 
 Tailwind v4 through `@tailwindcss/postcss` — there is **no `tailwind.config`**; theme tokens are declared CSS-first in `@theme inline` inside `src/app/globals.css`.
 
-**`DESIGN.md` is the design system and it now documents what actually ships** — the four-colour SG Partner language (white ground / `#0A0A0A` structure / `#FFD84D` gold highlight / `#EF2027` red action), with YAML tokens mirroring `globals.css` at the top and prose guidance below. **Read it before building any UI.** It was rewritten from the earlier Apple/Action-Blue analysis, which described a system this project never shipped; the design detector reads it, so `DESIGN.md` and `globals.css` must be changed together or the detector starts reporting drift that is not real.
+**`DESIGN.md` is the design system and it now documents what actually ships** — the four-colour SG PLUS Partner language (white ground / `#0A0A0A` structure / `#FFD84D` gold highlight / `#EF2027` red action), with YAML tokens mirroring `globals.css` at the top and prose guidance below. **Read it before building any UI.** It was rewritten from the earlier Apple/Action-Blue analysis, which described a system this project never shipped; the design detector reads it, so `DESIGN.md` and `globals.css` must be changed together or the detector starts reporting drift that is not real.
 
 The notes below cover what the sections of this file add on top of it. The rules that are easy to violate accidentally:
 
@@ -120,7 +120,7 @@ The notes below cover what the sections of this file add on top of it. The rules
 
 #### The landing brand palette
 
-**The product is branded "SG Partner".** It was renamed from "Silmin" partway through; the wordmark is now the logo mark (`src/components/brand/sg-mark.png`, a transparent PNG, also copied to `src/app/icon.png` as the favicon) plus the text lockup in `BrandLogo` (`src/components/brand/brand-logo.tsx`), used by `SiteHeader`, `SiteFooter`, `AdminSidebar`, and the login screens. **The `silmin.co.th` email and domain were deliberately left alone** — renaming them would invent contact details that may not exist, and the Nominatim/Overpass `User-Agent` strings must stay reachable by policy. Change those only when the real domain is known.
+**The product is branded "SG PLUS Partner".** It was renamed from "Silmin" partway through; the wordmark is now the logo mark (`src/components/brand/sg-mark.png`, a transparent PNG, also copied to `src/app/icon.png` as the favicon) plus the text lockup in `BrandLogo` (`src/components/brand/brand-logo.tsx`), used by `SiteHeader`, `SiteFooter`, `AdminSidebar`, and the login screens. **The `silmin.co.th` email and domain were deliberately left alone** — renaming them would invent contact details that may not exist, and the Nominatim/Overpass `User-Agent` strings must stay reachable by policy. Change those only when the real domain is known.
 
 The landing page and `SiteHeader` run on a red/gold palette. The four brand colours are white, `#0A0A0A`, yellow `#FFD84D`, red `#EF2027`, specified by the user. **They are deliberately not used in equal amounts**: white is the ground, black is nav and type, yellow is highlight, red is *only* the primary action and the active state. Spreading red and yellow evenly is what turns this into a discount-flyer, and is the single easiest way to wreck it.
 

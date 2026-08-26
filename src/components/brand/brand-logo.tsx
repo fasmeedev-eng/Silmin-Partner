@@ -2,7 +2,7 @@ import Image from "next/image";
 import sgMark from "./sg-mark.png";
 
 /**
- * โลโก้ SG Partner — เครื่องหมาย + ชื่อ
+ * โลโก้ SG PLUS Partner — เครื่องหมาย + ชื่อ
  *
  * ไฟล์ภาพ import แบบ static ไม่ใช่อ้างด้วย path สตริง เพื่อให้ Next รู้ขนาดจริงของภาพตั้งแต่ตอน
  * build (กัน layout shift) และใส่ hash ให้ชื่อไฟล์เอง ภาพเป็น PNG โปร่งใสจริง (~70% ของพื้นที่)
@@ -35,7 +35,7 @@ export function BrandLogo({
             tone === "dark" ? "text-white" : "text-ink"
           }`}
         >
-          SG
+          SG PLUS
         </span>
         <span
           className={`text-fine font-semibold uppercase leading-none tracking-[0.2em] ${

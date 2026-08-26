@@ -25,8 +25,8 @@ export function SiteFooter() {
                   className="inline-flex items-center gap-3 text-caption text-white/70 transition-colors hover:text-white"
                 >
                   <Phone aria-hidden className="size-4 shrink-0 text-gold" strokeWidth={1.9} />
-                  02-000-0000
-                  <span className="text-white/35">จันทร์–ศุกร์ 09:00–18:00</span>
+                  073-729615
+                  <span className="text-white/35">จันทร์–เสาร์ 09:30–19:30</span>
                 </a>
               </li>
               <li>
