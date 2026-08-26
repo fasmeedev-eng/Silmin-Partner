@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { SECTION_LINKS } from "./nav-links";
+import { isSectionLinkActive, useActiveSectionId } from "./use-active-section";
 
 /**
  * เมนูจอเล็กของแถบนำทาง — ใช้ทุกหน้า ไม่ใช่แค่หน้าแรก
@@ -36,6 +37,7 @@ export function MobileNav({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
+  const activeId = useActiveSectionId();
 
   // ปิดเมนูเมื่อเปลี่ยนหน้า ไม่งั้นเมนูจะค้างคาหน้าจอทับเนื้อหาของหน้าใหม่
   useEffect(() => setOpen(false), [pathname]);
@@ -85,17 +87,23 @@ export function MobileNav({
       >
         {showSectionLinks ? (
           <ul>
-            {SECTION_LINKS.map(({ href, label }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  className="flex min-h-[52px] items-center border-b border-white/[0.07] text-body font-medium text-white/85 transition-colors hover:text-white"
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
+            {SECTION_LINKS.map(({ href, label }) => {
+              const current = isSectionLinkActive(href, activeId);
+              return (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    aria-current={current ? "page" : undefined}
+                    className={`flex min-h-[52px] items-center border-b border-white/[0.07] text-body font-medium transition-colors ${
+                      current ? "text-brand" : "text-white/85 hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
 

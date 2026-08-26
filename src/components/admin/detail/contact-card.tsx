@@ -1,10 +1,10 @@
-import { Clock, Mail, MessageCircle, Phone, Store } from "lucide-react";
+import { Clock, Mail, MessageCircle, Phone, User } from "lucide-react";
 import { CALLBACK_CHANNELS, CALLBACK_SLOTS, CONTACT_POSITIONS, labelOf } from "@/lib/application/options";
 
 /**
- * การ์ดติดต่อร้าน — พื้นดำ วางไว้บนสุดเพราะงานจริงของเจ้าหน้าที่คือ "โทรหาร้าน" ไม่ใช่ "อ่านข้อมูล"
- * รีสกินจากกล่องเดิม (ชื่อ+ปุ่มโทร+ช่วงเวลาสะดวก+LINE/อีเมล) ให้มีวงกลมไอคอนร้านค้า
- * ตามดีไซน์อ้างอิง ข้อมูลเป็นชุดเดียวกับของเดิมทั้งหมด ไม่มีฟิลด์ใหม่
+ * ข้อมูลติดต่อร้าน — ฝังอยู่ในครึ่งซ้ายของ ApplicationOverviewCard (พื้นดำเดียวกับแถบความคืบหน้า)
+ * ไม่มี wrapper การ์ดของตัวเองอีกต่อไป งานจริงของเจ้าหน้าที่คือ "โทรหาร้าน" ไม่ใช่ "อ่านข้อมูล"
+ * จึงยังอยู่ตำแหน่งเด่นซ้ายบนสุดเหมือนเดิม ข้อมูลเป็นชุดเดียวกับของเดิมทั้งหมด ไม่มีฟิลด์ใหม่
  */
 export function ContactCard({
   fullName,
@@ -28,21 +28,21 @@ export function ContactCard({
   const roleLabel = position === "other" ? positionOther : labelOf(CONTACT_POSITIONS, position);
 
   return (
-    <section className="mt-6 rounded-card bg-nav p-6 text-white shadow-soft sm:p-7">
+    <div>
       <h2 className="text-caption font-semibold text-on-dark-muted">ติดต่อร้านนี้</h2>
 
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
         <span
           aria-hidden
-          className="flex size-14 shrink-0 items-center justify-center rounded-full ring-2 ring-gold"
+          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-white/10 ring-2 ring-gold"
         >
-          <Store className="size-6 text-gold" strokeWidth={1.75} />
+          <User className="size-6 text-gold" strokeWidth={1.75} />
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="text-body font-semibold">
-            {fullName || "ไม่ได้ระบุชื่อผู้ติดต่อ"}
-            {roleLabel ? <span className="ml-1.5 font-normal text-white/60">({roleLabel})</span> : null}
+          <p className="text-body font-semibold">{fullName || "ไม่ได้ระบุชื่อผู้ติดต่อ"}</p>
+          <p className="mt-0.5 text-fine text-on-dark-muted">
+            {roleLabel || "ผู้ติดต่อหลัก"}
           </p>
 
           <a
@@ -81,6 +81,6 @@ export function ContactCard({
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

@@ -2,8 +2,19 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CircleCheck, MessageSquare, TriangleAlert } from "lucide-react";
-import { STATUS_META, isDangerStatus } from "@/lib/application/status";
+import {
+  ChevronRight,
+  CircleCheck,
+  CircleX,
+  Handshake,
+  MessageSquare,
+  Search,
+  Store,
+  TriangleAlert,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
+import { STATUS_META, isDangerStatus, statusChipClass } from "@/lib/application/status";
 import { ALLOWED_TRANSITIONS, requiresMessage } from "@/lib/application/transitions";
 import type { ApplicationStatus } from "@/lib/db/applications";
 import { addNoteAction, changeStatusAction } from "../actions";
@@ -19,6 +30,17 @@ const ACTION_HINTS: Partial<Record<ApplicationStatus, string>> = {
   Onboarding: "เริ่มทำสัญญาและเปิดระบบให้ร้าน",
   ActivePartner: "เปิดใช้งานเรียบร้อย ร้านเริ่มขายได้",
   Rejected: "ปิดใบสมัครนี้ ต้องบอกเหตุผลให้ร้านทราบ",
+};
+
+/** ไอคอนต่อตัวเลือก ใช้แค่ช่วยแยกแถวด้วยรูปทรง — สีของช่องไอคอนมาจาก statusChipClass เสมอ
+ * (ทอง = ถึงตาร้าน, ดำ = ผ่านแล้ว, แดง = ไม่ผ่าน, เทา = กำลังเดินอยู่) ไม่ใช่สีที่คิดขึ้นใหม่ต่อไอคอน */
+const OPTION_ICONS: Partial<Record<ApplicationStatus, LucideIcon>> = {
+  Reviewing: Search,
+  NeedMoreInfo: Upload,
+  Approved: CircleCheck,
+  Rejected: CircleX,
+  Onboarding: Handshake,
+  ActivePartner: Store,
 };
 
 export function StaffPanel({
@@ -151,6 +173,7 @@ export function StaffPanel({
           {options.map((option) => {
             const selected = to === option;
             const isReject = isDangerStatus(option);
+            const Icon = OPTION_ICONS[option] ?? CircleCheck;
             return (
               <button
                 key={option}
@@ -163,7 +186,11 @@ export function StaffPanel({
                 // ตัวที่เลือกไว้เป็นดำ ยกเว้น "ไม่ผ่าน" ที่เป็นแดง — แดงในแผงนี้ต้องแปลว่า
                 // "ตัวเลือกที่ตัดจบและย้อนไม่ได้" อย่างเดียว ถ้าตัวเลือกปกติเป็นแดงด้วย
                 // เจ้าหน้าที่จะแยกไม่ออกว่ากำลังจะกดปฏิเสธร้านหรือแค่เลื่อนสถานะ
-                className={`block w-full rounded-card p-5 text-left transition-all ${
+                //
+                // ตอนยังไม่เลือก แสดงช่องไอคอน + ชิปสถานะ (สีจาก statusChipClass) + ลูกศร —
+                // ทั้งสามอย่างหายไปตอนเลือกแล้ว เพราะการ์ดทั้งใบกลายเป็นสีของสถานะนั้นเองอยู่แล้ว
+                // ไม่ต้องซ้ำสัญญาณเดิม
+                className={`flex w-full items-center gap-4 rounded-card p-5 text-left transition-all ${
                   isReject ? "focus-visible:outline-danger-focus" : ""
                 } ${
                   selected
@@ -173,16 +200,38 @@ export function StaffPanel({
                     : "bg-canvas shadow-soft ring-1 ring-hairline/70 hover:ring-ink-48/30"
                 }`}
               >
-                <span className="block text-body font-semibold">
-                  {STATUS_META[option].label}
+                {!selected ? (
+                  <span
+                    aria-hidden
+                    className={`flex size-11 shrink-0 items-center justify-center rounded-input ${statusChipClass(option)}`}
+                  >
+                    <Icon className="size-5" strokeWidth={2} />
+                  </span>
+                ) : null}
+
+                <span className="min-w-0 flex-1">
+                  <span className="block text-body font-semibold">
+                    {STATUS_META[option].label}
+                  </span>
+                  <span
+                    className={`mt-1 block text-caption leading-[1.7] ${
+                      selected ? (isReject ? "text-on-danger/80" : "text-white/60") : "text-ink-80"
+                    }`}
+                  >
+                    {ACTION_HINTS[option] ?? STATUS_META[option].detail}
+                  </span>
                 </span>
-                <span
-                  className={`mt-1 block text-caption leading-[1.7] ${
-                    selected ? (isReject ? "text-on-danger/80" : "text-white/60") : "text-ink-80"
-                  }`}
-                >
-                  {ACTION_HINTS[option] ?? STATUS_META[option].detail}
-                </span>
+
+                {!selected ? (
+                  <>
+                    <span
+                      className={`hidden shrink-0 rounded-full px-3 py-1.5 text-caption font-semibold sm:inline-flex ${statusChipClass(option)}`}
+                    >
+                      {STATUS_META[option].label}
+                    </span>
+                    <ChevronRight aria-hidden className="size-5 shrink-0 text-ink-48" />
+                  </>
+                ) : null}
               </button>
             );
           })}

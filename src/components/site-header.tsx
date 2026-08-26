@@ -4,7 +4,7 @@ import { auth, signOut } from "@/auth";
 import { AuthCta } from "@/components/auth/auth-cta";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { MobileNav } from "@/components/mobile-nav";
-import { SECTION_LINKS } from "@/components/nav-links";
+import { SectionNavLinks } from "@/components/section-nav-links";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ctaClass } from "@/components/ui/cta-button";
 import { countUnread, listNotifications } from "@/lib/db/notifications";
@@ -29,12 +29,11 @@ export async function SiteHeader({
   isActivePartner?: boolean;
   /**
    * แสดงเมนูลิงก์ไปยังส่วนต่าง ๆ ของหน้าแรก — ค่าเริ่มต้นปิด เพราะหน้าที่ผู้ใช้กำลังทำงานอยู่
-   * (กรอกใบสมัคร ติดตามสถานะ) เมนูการตลาดตรงนั้นเป็นสิ่งรบกวน
+   * (กรอกใบสมัคร ติดตามสถานะ) เมนูการตลาดตรงนั้นเป็นสิ่งรบกวน เปิดได้บนหน้าอื่นด้วยถ้าอยากได้แถบ
+   * แบบเดียวกับหน้าแรกเป๊ะ ๆ (เช่น /partner/calculator)
    *
-   * เปิดได้บนหน้าอื่นด้วยถ้าอยากได้แถบแบบเดียวกับหน้าแรกเป๊ะ ๆ (เช่น /partner/calculator) แต่ต้องรู้
-   * ข้อจำกัดนี้ไว้ก่อน: รายการยังไม่รู้ pathname จริง "หน้าหลัก" จึงติด active เสมอไม่ว่าอยู่หน้าไหน
-   * เพราะการอ่าน pathname ต้องพึ่ง usePathname ซึ่งบังคับให้คอมโพเนนต์นี้กลายเป็น client component
-   * และเสีย server action ของปุ่มออกจากระบบไป — ยอมรับข้อจำกัดนี้แทนที่จะแยก client component ย่อยเพิ่ม
+   * รายการที่ active จริงตาม path + แฮชปัจจุบัน (ดู use-active-section.ts ผ่าน SectionNavLinks) —
+   * หน้าอื่นที่ไม่ใช่ "/" เลยจะไม่มีรายการไหน active เพราะไม่มี section ไหนอยู่ในจอจริง ๆ
    */
   sectionNav?: boolean;
 }) {
@@ -86,32 +85,10 @@ export async function SiteHeader({
           // เมนูเต็มโผล่ที่ xl (1280) ไม่ใช่ lg (1024) — คอนเทนเนอร์ตันที่ 1280 อยู่แล้ว
           // ที่ 1024 พื้นที่เหลือไม่พอวางเมนูห้ารายการคู่กับปุ่มฝั่งขวาโดยไม่ล้น (วัดแล้ว)
           // ช่วง 1024–1279 จึงใช้แฮมเบอร์เกอร์ ซึ่งเป็นพฤติกรรมปกติของแท็บเล็ตอยู่แล้ว
-          <ul className="ml-auto hidden items-center gap-7 xl:flex">
-            {SECTION_LINKS.map(({ href, label }, index) => {
-              // แถบนี้เปิด sectionNav เฉพาะหน้าแรก รายการแรกจึงเป็นหน้าที่เปิดอยู่เสมอ
-              const current = index === 0;
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    aria-current={current ? "page" : undefined}
-                    className={`group relative inline-flex h-20 items-center whitespace-nowrap text-caption font-medium transition-colors focus-visible:outline-white ${
-                      current ? "text-brand" : "text-white/70 hover:text-white"
-                    }`}
-                  >
-                    {label}
-                    {/* ขีดใต้เมนูโตจากซ้ายไปขวาตอน hover — ตัวที่ active ขีดค้างไว้ตลอด */}
-                    <span
-                      aria-hidden
-                      className={`absolute inset-x-0 bottom-6 h-[2px] origin-left rounded-full bg-brand transition-transform duration-300 ease-out ${
-                        current ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
-                      }`}
-                    />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          //
+          // แยกเป็น client component ต่างหาก (SectionNavLinks) เพราะต้องรู้ว่ากำลังอยู่หมวดไหนจริง ๆ
+          // (ดู use-active-section.ts) — SiteHeader เองยังเป็น server component ได้ตามเดิม
+          <SectionNavLinks />
         ) : null}
 
         <div

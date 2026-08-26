@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Lightbulb, Printer, Wallet } from "lucide-react";
+import { Check, Copy, HandCoins, Lightbulb, Printer, Wallet } from "lucide-react";
 import { Field, TextInput } from "@/components/ui/form-fields";
+
+/**
+ * ค่าคอมมิชชั่นที่ร้านพาร์ทเนอร์ได้รับ — 10% ของยอดจัดไฟแนนซ์ (ราคา − เงินดาวน์) เท่านั้น
+ * ไม่ขึ้นกับจำนวนงวดที่ลูกค้าเลือกผ่อน จึงเป็นตัวเลขเดียว ไม่ใช่คอลัมน์แยกในตาราง
+ * ข้อมูลนี้เป็นของร้าน ไม่ใช่ของลูกค้า จึงต้อง print:hidden และไม่ใส่ในข้อความที่คัดลอก/พิมพ์ให้ลูกค้า
+ */
+const PARTNER_COMMISSION_RATE_PERCENT = 10;
 
 /**
  * อัตราค่าธรรมเนียมแบบ add-on (คงที่) ต่องวด — เป็นตัวเลขประมาณการมาตรฐานทั่วไปที่กำหนดขึ้นเอง
@@ -74,6 +81,7 @@ export function InstallmentCalculator() {
   });
   // แผนที่ดอกเบี้ยต่ำที่สุด = ประหยัดที่สุดสำหรับลูกค้า — ใช้ข้อมูลอัตราจริงที่มีอยู่แล้ว ไม่ใช่ค่าที่เดาใหม่
   const cheapestRate = Math.min(...rows.map((r) => r.addOnRatePercent));
+  const commission = Math.round(financed * (PARTNER_COMMISSION_RATE_PERCENT / 100));
 
   const handleCopy = async () => {
     const lines = [
@@ -165,7 +173,7 @@ export function InstallmentCalculator() {
               })}
             </div>
 
-            <div className="mt-3 grid grid-cols-2  gap-3">
+            <div className="mt-3 grid   grid-cols-1 md:grid-cols-2  gap-3">
               <Field id="down-amount" label="จำนวนเงินดาวน์ (บาท)">
                 <TextInput
                   id="down-amount"
@@ -173,7 +181,7 @@ export function InstallmentCalculator() {
                   onChange={handleDownAmountChange}
                   inputMode="numeric"
                   placeholder="0"
-                  className="tabular-nums pl-2 rounded-sm border border-gray-200"
+                  className="tabular-nums w-full md:w-auto pl-2 rounded-sm border border-gray-200"
                 />
               </Field>
               <Field id="down-percent" label="เปอร์เซ็นต์ (%)">
@@ -183,7 +191,7 @@ export function InstallmentCalculator() {
                   onChange={handleDownPercentChange}
                   inputMode="decimal"
                   placeholder="0"
-                  className="tabular-nums pl-2 rounded-sm border border-gray-200"
+                  className="tabular-nums w-full md:w-auto pl-2 rounded-sm border border-gray-200"
                 />
               </Field>
             </div>
@@ -197,6 +205,19 @@ export function InstallmentCalculator() {
             </span>
             <span className="text-body font-bold tabular-nums text-gold-ink">
               {baht.format(financed)} บาท
+            </span>
+          </div>
+
+          {/* ค่าคอมของร้าน — ไฮไลต์ด้วยพื้นทองอ่อน (ต่างจากยอดจัดไฟแนนซ์ที่พื้น pearl เฉย ๆ)
+              ให้เห็นเด่นตั้งแต่ตอนกำลังกรอก ไม่ต้องเลื่อนตาไปดูฝั่งผลลัพธ์ การ์ดนี้ทั้งใบ print:hidden
+              อยู่แล้ว (ห่อจากข้างนอก) จึงไม่หลุดไปอยู่ในเอกสารที่พิมพ์ให้ลูกค้า */}
+          <div className="flex items-center justify-between gap-4 rounded-input bg-gold-soft px-4 py-3.5 ring-1 ring-gold/25 ring-inset">
+            <span className="flex items-center gap-2 text-caption font-medium text-gold-ink">
+              <HandCoins aria-hidden className="size-4 shrink-0" strokeWidth={1.9} />
+              ค่าคอมมิชชั่นร้าน ({PARTNER_COMMISSION_RATE_PERCENT}% ของยอดจัดไฟแนนซ์)
+            </span>
+            <span className="text-body font-bold tabular-nums text-gold-ink">
+              {baht.format(commission)} บาท
             </span>
           </div>
         </div>

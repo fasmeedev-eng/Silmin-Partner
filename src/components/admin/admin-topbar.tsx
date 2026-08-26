@@ -61,14 +61,7 @@ export function AdminTopbar({
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 md:ml-4">
-          <Link
-            href="/admin"
-            aria-label="ค้นหาใบสมัคร"
-            title="ค้นหาใบสมัคร"
-            className="inline-flex size-11 items-center justify-center rounded-full text-ink-48 ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl hover:text-ink"
-          >
-            <Search aria-hidden className="size-[18px]" strokeWidth={2} />
-          </Link>
+
 
           <NotificationBell
             initialItems={notifications.items}

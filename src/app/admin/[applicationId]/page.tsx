@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, NotebookPen } from "lucide-react";
 import { guardRole } from "@/lib/auth/guard";
 import { can } from "@/lib/auth/permissions";
 import { findApplication, listActivities } from "@/lib/db/applications";
@@ -20,9 +20,7 @@ import {
   labelOf,
   labelsOf,
 } from "@/lib/application/options";
-import { ContactCard } from "@/components/admin/detail/contact-card";
-import { ProgressTracker } from "@/components/admin/detail/progress-tracker";
-import { StepsChecklist } from "@/components/admin/detail/steps-checklist";
+import { ApplicationOverviewCard } from "@/components/admin/detail/overview-card";
 import { DocumentsCard } from "@/components/admin/detail/documents-card";
 import { ActivityTimeline } from "@/components/admin/detail/activity-timeline";
 import { StatusMessageCard } from "@/components/admin/detail/status-message";
@@ -94,7 +92,7 @@ export default async function AdminApplicationPage({
         className="inline-flex min-h-[48px] items-center gap-2 text-body text-ink-80 transition-colors hover:text-ink"
       >
         <ArrowLeft aria-hidden className="size-5" />
-        กลับไปรายการใบสมัคร
+        กลับไปยังคิวใบสมัคร
       </Link>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -106,12 +104,23 @@ export default async function AdminApplicationPage({
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
           <span
             className={`inline-flex min-h-[36px] items-center rounded-full px-5 text-body font-semibold ${statusChipClass(status)}`}
           >
             {STATUS_META[status].label}
           </span>
+          {/* ลิงก์เลื่อนไปหาช่องโน้ตภายในที่ท้ายแผงตัดสินใจด้านล่าง — ไม่ใช่ช่องกรอกใหม่ตรงนี้
+              เพราะจะกลายเป็นทางเข้าที่สองไปเขียนที่เดียวกัน ต้องคอยซิงก์สองจุดให้ตรงกัน */}
+          {canWriteNotes ? (
+            <a
+              href="#internal-note"
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-btn px-5 text-body font-semibold text-ink-80 ring-1 ring-hairline ring-inset transition-colors hover:bg-pearl"
+            >
+              <NotebookPen aria-hidden className="size-4" />
+              บันทึกหมายเหตุ
+            </a>
+          ) : null}
           {/* แถบเลื่อนไปหาแผงตัดสินใจด้านล่าง — ไม่ทำเป็นปุ่ม/เมนูแยกชุดใหม่ เพราะจะกลายเป็น
               ทางเลือกที่สองสำหรับการกระทำเดียวกัน แล้วสับสนว่าอันไหนคือของจริง */}
           {hasNextSteps ? (
@@ -129,8 +138,9 @@ export default async function AdminApplicationPage({
         <StatusMessageCard status={status} message={application.statusMessage} />
       ) : null}
 
-      {/* ติดต่อร้านมาก่อนข้อมูลอื่น เพราะงานจริงคือ "โทรหาร้าน" ไม่ใช่ "อ่านข้อมูล" */}
-      <ContactCard
+      {/* ติดต่อร้านมาก่อนข้อมูลอื่น เพราะงานจริงคือ "โทรหาร้าน" ไม่ใช่ "อ่านข้อมูล" — รวมอยู่ในการ์ด
+          เดียวกับความคืบหน้า เพราะทั้งคู่ตอบคำถามเดียวกันคือ "ใบนี้อยู่จุดไหนตอนนี้" */}
+      <ApplicationOverviewCard
         fullName={data.contact.fullName}
         position={data.contact.position}
         positionOther={data.contact.positionOther}
@@ -139,27 +149,24 @@ export default async function AdminApplicationPage({
         email={data.contact.email}
         callbackChannel={data.interests.callbackChannel}
         callbackSlot={data.interests.callbackSlot}
+        status={status}
+        anchorAt={anchorAt}
       />
-
-      <ProgressTracker status={status} anchorAt={anchorAt} />
-
-      {/* id นี้คือปลายทางของปุ่ม "ดำเนินการ" ด้านบน — scroll-mt กันไม่ให้แถบบนที่ sticky
-          บังหัวข้อตอนกระโดดลงมา */}
-      <div id="next-steps" className="mt-6 scroll-mt-24">
-        <StaffPanel
-          applicationId={applicationId}
-          shopName={data.shop.name}
-          status={status}
-          canChangeStatus={canChangeStatus}
-          canWriteNotes={canWriteNotes}
-        />
-      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-5 lg:items-start">
         <div className="space-y-6 lg:col-span-3">
-          <StepsChecklist status={status} anchorAt={anchorAt} />
+          {/* id นี้คือปลายทางของปุ่ม "ดำเนินการ" และ "บันทึกหมายเหตุ" ด้านบน — scroll-mt กันไม่ให้
+              แถบบนที่ sticky บังหัวข้อตอนกระโดดลงมา */}
+          <div id="next-steps" className="scroll-mt-24">
+            <StaffPanel
+              applicationId={applicationId}
+              shopName={data.shop.name}
+              status={status}
+              canChangeStatus={canChangeStatus}
+              canWriteNotes={canWriteNotes}
+            />
+          </div>
           <DocumentsCard documents={documents} canView={canViewDocuments} />
-          <ActivityTimeline activities={activities} />
         </div>
 
         <div className="space-y-6 lg:col-span-2">
@@ -213,6 +220,8 @@ export default async function AdminApplicationPage({
               }
             />
           </SummaryCard>
+
+          <ActivityTimeline activities={activities} />
 
           <SummaryCard title="ข้อมูลร้าน">
             <SummaryRow label="ชื่อร้านค้า" value={data.shop.name} />
