@@ -220,11 +220,16 @@ export async function SiteHeader({
                   เข้าสู่ระบบ
                 </AuthCta>
               </div>
-              <AuthCta signedIn={false} href="/apply" variant="nav-brand">
-                <SquarePen aria-hidden className="size-4" />
-                <span className="hidden sm:inline">สมัครเป็นพาร์ทเนอร์</span>
-                <span className="sm:hidden">สมัคร</span>
-              </AuthCta>
+              {/* จอมือถือ (ต่ำกว่า sm) ไม่โชว์ปุ่มนี้เลย — หน้าแรกมี StickyCta ปักไว้ล่างจอมือถือ
+                  อยู่แล้ว (ดู page.tsx: "เว้นที่ด้านล่างให้แถบ CTA ติดขอบจอมือถือ") ปุ่มเดียวกันสองที่
+                  พร้อมกันบนจอแคบเป็นของซ้ำ ไม่ใช่ทางเลือก ซ่อนด้วย wrapper ไม่ใช่คลาสบนปุ่มเอง
+                  ด้วยเหตุผลเดียวกับปุ่ม "เข้าสู่ระบบ" ด้านบน (ctaClass ใส่ inline-flex มาแล้ว) */}
+              <div className="hidden sm:block">
+                <AuthCta signedIn={false} href="/apply" variant="nav-brand">
+                  <SquarePen aria-hidden className="size-4" />
+                  สมัครเป็นพาร์ทเนอร์
+                </AuthCta>
+              </div>
             </>
           )}
 
