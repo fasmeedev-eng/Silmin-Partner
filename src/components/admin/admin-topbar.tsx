@@ -47,7 +47,7 @@ export function AdminTopbar({
           <span className="inline-flex items-center gap-2">
             {/* จุดสถานะเป็นทอง ไม่ใช่เขียว — ระบบนี้มีสี่สี (ขาว/ดำ/ทอง/แดง) ตาม DESIGN.md
                 และทองคือสีของ "ข้อมูลสำคัญ" อยู่แล้ว การเพิ่มเขียวเข้ามาเพื่อจุดเดียวไม่คุ้ม */}
-            <span aria-hidden className="size-2 rounded-full bg-gold" />
+            <span aria-hidden className="size-2 rounded-full bg-green-500" />
             ระบบออนไลน์
           </span>
           <span aria-hidden className="h-4 w-px bg-hairline" />

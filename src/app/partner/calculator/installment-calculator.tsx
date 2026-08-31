@@ -2,38 +2,106 @@
 
 import { useState } from "react";
 import { Check, Copy, HandCoins, Lightbulb, Printer, Wallet } from "lucide-react";
-import { Field, TextInput } from "@/components/ui/form-fields";
+import { Field, RadioGroup, TextInput } from "@/components/ui/form-fields";
+import type { Option } from "@/lib/application/options";
 
 /**
  * ค่าคอมมิชชั่นที่ร้านพาร์ทเนอร์ได้รับ — 10% ของยอดจัดไฟแนนซ์ (ราคา − เงินดาวน์) เท่านั้น
  * ไม่ขึ้นกับจำนวนงวดที่ลูกค้าเลือกผ่อน จึงเป็นตัวเลขเดียว ไม่ใช่คอลัมน์แยกในตาราง
  * ข้อมูลนี้เป็นของร้าน ไม่ใช่ของลูกค้า จึงต้อง print:hidden และไม่ใส่ในข้อความที่คัดลอก/พิมพ์ให้ลูกค้า
+ * แยกเป็นคนละสูตรกับ "อัตรากำไร" ของตารางยอดผ่อนด้านล่างโดยสิ้นเชิง — ห้ามนำมารวมกัน
  */
 const PARTNER_COMMISSION_RATE_PERCENT = 10;
-
-/**
- * อัตราค่าธรรมเนียมแบบ add-on (คงที่) ต่องวด — เป็นตัวเลขประมาณการมาตรฐานทั่วไปที่กำหนดขึ้นเอง
- * (ราว 1%/เดือนของยอดที่ต้องผ่อน ซึ่งเป็นช่วงที่พบได้ทั่วไปสำหรับแผนผ่อนของร้านที่ไม่ใช่ 0%)
- * ไม่ใช่อัตราที่ยืนยันจากบริษัทไฟแนนซ์จริง — ถ้าธุรกิจมีอัตราจริงให้แทนที่ตารางนี้
- */
-const INSTALLMENT_PLANS = [
-  { months: 3, addOnRatePercent: 3 },
-  { months: 6, addOnRatePercent: 6 },
-  { months: 8, addOnRatePercent: 8 },
-  { months: 10, addOnRatePercent: 10 },
-  { months: 12, addOnRatePercent: 12 },
-] as const;
 
 /** เปอร์เซ็นต์ดาวน์ที่ใช้บ่อยหน้าร้าน — กดทีเดียวแทนการพิมพ์ทั้งสองช่อง */
 const QUICK_DOWN_PERCENTS = [0, 10, 20, 30, 40] as const;
 
 const baht = new Intl.NumberFormat("th-TH", { maximumFractionDigits: 0 });
 
+/**
+ * ══════════════════════════════════════════════════════════════════════════
+ * สูตรผ่อนมือถือของร้าน — ใช้คำนวณตารางยอดผ่อนทั้งตาราง (แทนที่สูตร add-on เดิม)
+ *
+ * ยอดจัด        = ราคาขาย - เงินดาวน์
+ * กำไร          = ยอดจัด × อัตรากำไร (ตามประเภทเครื่อง + จำนวนงวด)
+ * ยอดผ่อนรวม    = ยอดจัด + กำไร
+ * ค่างวดต่อเดือน = ยอดผ่อนรวม ÷ จำนวนงวด
+ *
+ * อัตรากำไรเก็บเป็น configuration แยกตามประเภทเครื่อง ไม่ hardcode กระจายในโค้ด
+ * คนละสูตรกับค่าคอมมิชชั่นร้านด้านบน — ห้ามนำมารวมกัน
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+type DeviceType = "new" | "used";
+
+const INSTALLMENT_MONTHS = [3, 6, 10, 12, 15] as const;
+
+const NEW_DEVICE_PROFIT_RATES: Record<number, number> = {
+  3: 50,
+  6: 70,
+  10: 80,
+  12: 90,
+  15: 100,
+};
+
+const USED_DEVICE_PROFIT_RATES: Record<number, number> = {
+  3: 60,
+  6: 75,
+  10: 85,
+  12: 95,
+  15: 105,
+};
+
+const DEVICE_TYPE_OPTIONS: readonly Option[] = [
+  { value: "new", label: "มือ 1" },
+  { value: "used", label: "มือ 2" },
+];
+
+interface InstallmentResult {
+  financedAmount: number;
+  profitRatePercent: number;
+  profitAmount: number;
+  totalInstallment: number;
+  monthlyPayment: number;
+}
+
+function calculateInstallment({
+  salePrice,
+  downPayment,
+  deviceType,
+  months,
+}: {
+  salePrice: number;
+  downPayment: number;
+  deviceType: DeviceType;
+  months: number;
+}): InstallmentResult {
+  const financedAmount = Math.max(salePrice - downPayment, 0);
+  const rates = deviceType === "new" ? NEW_DEVICE_PROFIT_RATES : USED_DEVICE_PROFIT_RATES;
+  const profitRatePercent = rates[months] ?? 0;
+  const profitAmount = financedAmount * (profitRatePercent / 100);
+  const totalInstallment = financedAmount + profitAmount;
+  const monthlyPayment = months > 0 ? totalInstallment / months : 0;
+
+  return { financedAmount, profitRatePercent, profitAmount, totalInstallment, monthlyPayment };
+}
+
+/** แสดงทศนิยม 2 ตำแหน่งเฉพาะเมื่อมีเศษจริง — จำนวนเต็มยังคงแสดงแบบเดิมไม่มี .00 ห้อยท้าย */
+const bahtDecimal = new Intl.NumberFormat("th-TH", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatShopBaht(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? baht.format(rounded) : bahtDecimal.format(rounded);
+}
+
 export function InstallmentCalculator() {
   const [price, setPrice] = useState("");
   const [downAmount, setDownAmount] = useState("");
   const [downPercent, setDownPercent] = useState("");
   const [copied, setCopied] = useState(false);
+  const [deviceType, setDeviceType] = useState<DeviceType>("new");
 
   const priceNum = Number(price) || 0;
   const downAmountNum = Number(downAmount) || 0;
@@ -75,12 +143,12 @@ export function InstallmentCalculator() {
   const canCalculate = priceNum > 0 && financed > 0;
   const downPercentDisplay = priceNum > 0 ? (Number(downPercent) || 0).toFixed(2) : "0";
 
-  const rows = INSTALLMENT_PLANS.map((plan) => {
-    const total = financed * (1 + plan.addOnRatePercent / 100);
-    return { ...plan, monthly: Math.round(total / plan.months) };
+  const rows = INSTALLMENT_MONTHS.map((months) => {
+    const result = calculateInstallment({ salePrice: priceNum, downPayment: downAmountNum, deviceType, months });
+    return { months, profitRatePercent: result.profitRatePercent, monthly: result.monthlyPayment };
   });
-  // แผนที่ดอกเบี้ยต่ำที่สุด = ประหยัดที่สุดสำหรับลูกค้า — ใช้ข้อมูลอัตราจริงที่มีอยู่แล้ว ไม่ใช่ค่าที่เดาใหม่
-  const cheapestRate = Math.min(...rows.map((r) => r.addOnRatePercent));
+  // แผนที่อัตรากำไรต่ำที่สุด = ประหยัดที่สุดสำหรับลูกค้า
+  const cheapestRate = Math.min(...rows.map((r) => r.profitRatePercent));
   const commission = Math.round(financed * (PARTNER_COMMISSION_RATE_PERCENT / 100));
 
   const handleCopy = async () => {
@@ -88,9 +156,10 @@ export function InstallmentCalculator() {
       `ราคามือถือ: ${baht.format(priceNum)} บาท`,
       `เงินดาวน์: ${baht.format(downAmountNum)} บาท (${downPercentDisplay}%)`,
       `ยอดจัดไฟแนนซ์: ${baht.format(financed)} บาท`,
+      `ประเภทเครื่อง: ${deviceType === "new" ? "มือ 1" : "มือ 2"}`,
       "",
-      "งวดผ่อน\tผ่อนต่อเดือน\tดอกเบี้ยโดยประมาณ",
-      ...rows.map((r) => `${r.months} งวด\t${baht.format(r.monthly)} บาท\t${r.addOnRatePercent}%`),
+      "งวดผ่อน\tผ่อนต่อเดือน\tอัตรากำไร",
+      ...rows.map((r) => `${r.months} งวด\t${formatShopBaht(r.monthly)} บาท\t${r.profitRatePercent}%`),
     ];
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
@@ -147,6 +216,16 @@ export function InstallmentCalculator() {
               </span>
             </div>
           </Field>
+
+          <div>
+            <p className="mb-2.5 text-caption font-semibold text-ink">ประเภทเครื่อง</p>
+            <RadioGroup
+              name="device-type"
+              value={deviceType}
+              onChange={(value) => setDeviceType(value as DeviceType)}
+              options={DEVICE_TYPE_OPTIONS}
+            />
+          </div>
 
           <div>
             <p className="text-caption font-semibold text-ink">เงินดาวน์</p>
@@ -278,9 +357,9 @@ export function InstallmentCalculator() {
 
         {canCalculate ? (
           <>
-            {/* สรุปสามตัวเลขที่ตารางไม่ได้บอก — โดยเฉพาะ "ยอดจัดไฟแนนซ์" ซึ่งเป็นฐานของทุกงวด
+            {/* สรุปตัวเลขที่ตารางไม่ได้บอก — โดยเฉพาะ "ยอดจัดไฟแนนซ์" ซึ่งเป็นฐานของทุกงวด
                 ถ้าไม่แสดง ลูกค้าจะไม่เข้าใจว่าตัวเลขรายเดือนคิดมาจากอะไร */}
-            <dl className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10 print:divide-hairline print:border-hairline">
+            <dl className="grid grid-cols-4 divide-x divide-white/10 border-b border-white/10 print:divide-hairline print:border-hairline">
               <SummaryCell label="ราคามือถือ" value={baht.format(priceNum)} />
               <SummaryCell
                 label="เงินดาวน์"
@@ -288,6 +367,7 @@ export function InstallmentCalculator() {
                 note={`${downPercentDisplay}%`}
               />
               <SummaryCell label="ยอดจัดไฟแนนซ์" value={baht.format(financed)} highlight />
+              <SummaryCell label="ประเภทเครื่อง" value={deviceType === "new" ? "มือ 1" : "มือ 2"} />
             </dl>
 
             <table className="w-full">
@@ -303,7 +383,7 @@ export function InstallmentCalculator() {
                     ค่างวดต่อเดือน
                   </th>
                   <th scope="col" className="px-6 pt-4 text-right font-normal">
-                    ดอกเบี้ยโดยประมาณ
+                    อัตรากำไร
                   </th>
                 </tr>
               </thead>
@@ -317,12 +397,12 @@ export function InstallmentCalculator() {
                       {row.months} งวด
                     </th>
                     <td className="px-6 py-4 text-right text-lead font-semibold tabular-nums text-gold print:text-ink">
-                      {baht.format(row.monthly)}
+                      {formatShopBaht(row.monthly)}
                     </td>
                     <td className="px-6 py-4 text-right text-caption tabular-nums text-white/70 print:text-ink-80">
                       <span className="inline-flex items-center gap-2">
-                        {row.addOnRatePercent}%
-                        {row.addOnRatePercent === cheapestRate ? (
+                        {row.profitRatePercent}%
+                        {row.profitRatePercent === cheapestRate ? (
                           <span className="rounded-full bg-brand px-2 py-0.5 text-fine font-semibold text-on-brand">
                             แนะนำ
                           </span>
@@ -335,7 +415,7 @@ export function InstallmentCalculator() {
             </table>
 
             <p className="border-t border-white/10 px-6 py-4 text-fine leading-[1.7] text-white/45 print:border-hairline print:text-ink-48">
-              หมายเหตุ: อัตราดอกเบี้ยและยอดผ่อนอาจเปลี่ยนแปลงได้ตามเงื่อนไขของบริษัทฯ
+              หมายเหตุ: อัตรากำไรและยอดผ่อนอาจเปลี่ยนแปลงได้ตามเงื่อนไขของร้าน
             </p>
           </>
         ) : (
