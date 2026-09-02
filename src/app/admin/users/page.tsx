@@ -26,7 +26,7 @@ export default async function AdminUsersPage() {
 
   return (
     <>
-      <main className="mx-auto w-full max-w-[1180px] px-6 py-10 lg:px-8 lg:py-12">
+      <main className="mx-auto w-full max-w-[1440px] px-6 py-10 lg:px-8 lg:py-12">
         <p className="text-caption text-ink-48">ระบบหลังบ้าน</p>
         <h1 className="mt-1 text-h3 font-bold leading-[1.32] sm:text-h2">ผู้ใช้และบทบาท</h1>
 

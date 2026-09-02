@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { Calculator, LayoutDashboard, LogOut, SquarePen, UserRound } from "lucide-react";
+import { Calculator, LayoutDashboard, LogOut, SquarePen, Tags, UserRound } from "lucide-react";
 import { auth, signOut } from "@/auth";
 import { AuthCta } from "@/components/auth/auth-cta";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import { MobileNav } from "@/components/mobile-nav";
-import { SectionNavLinks } from "@/components/section-nav-links";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { ctaClass } from "@/components/ui/cta-button";
 import { countUnread, listNotifications } from "@/lib/db/notifications";
@@ -32,7 +31,8 @@ export async function SiteHeader({
    * (กรอกใบสมัคร ติดตามสถานะ) เมนูการตลาดตรงนั้นเป็นสิ่งรบกวน เปิดได้บนหน้าอื่นด้วยถ้าอยากได้แถบ
    * แบบเดียวกับหน้าแรกเป๊ะ ๆ (เช่น /partner/calculator)
    *
-   * รายการที่ active จริงตาม path + แฮชปัจจุบัน (ดู use-active-section.ts ผ่าน SectionNavLinks) —
+   * ลิงก์ชุดนี้อยู่ในแฮมเบอร์เกอร์ทุกความกว้าง ไม่กางบนแถบ รายการที่ active จริงตาม path +
+   * แฮชปัจจุบัน (ดู use-active-section.ts ผ่าน MobileNav) —
    * หน้าอื่นที่ไม่ใช่ "/" เลยจะไม่มีรายการไหน active เพราะไม่มี section ไหนอยู่ในจอจริง ๆ
    */
   sectionNav?: boolean;
@@ -71,6 +71,9 @@ export async function SiteHeader({
     <header className="sticky top-0 z-9999 border-b border-white/[0.08] bg-nav text-white">
       <nav
         aria-label="เมนูหลัก"
+        // relative ตรงนี้เป็น containing block ของแผงแฮมเบอร์เกอร์ (ดู MobileNav)
+        // จอมือถือแผงกาง inset-x-0 = เต็มความกว้างแถบ ซึ่งก็คือเต็มจอ เพราะ 1280 ยังไม่บีบ
+        // จอ sm ขึ้นไปแผงเปลี่ยนเป็นการ์ดสั้น ๆ เกาะขอบขวาของคอนเทนเนอร์นี้ ตรงกับปุ่มแฮมเบอร์เกอร์พอดี
         className="relative mx-auto flex h-20 w-full max-w-[1280px] items-center gap-8 px-6 lg:px-8"
       >
         <Link
@@ -81,19 +84,11 @@ export async function SiteHeader({
           <BrandLogo tone="dark" />
         </Link>
 
-        {sectionNav ? (
-          // เมนูเต็มโผล่ที่ xl (1280) ไม่ใช่ lg (1024) — คอนเทนเนอร์ตันที่ 1280 อยู่แล้ว
-          // ที่ 1024 พื้นที่เหลือไม่พอวางเมนูห้ารายการคู่กับปุ่มฝั่งขวาโดยไม่ล้น (วัดแล้ว)
-          // ช่วง 1024–1279 จึงใช้แฮมเบอร์เกอร์ ซึ่งเป็นพฤติกรรมปกติของแท็บเล็ตอยู่แล้ว
-          //
-          // แยกเป็น client component ต่างหาก (SectionNavLinks) เพราะต้องรู้ว่ากำลังอยู่หมวดไหนจริง ๆ
-          // (ดู use-active-section.ts) — SiteHeader เองยังเป็น server component ได้ตามเดิม
-          <SectionNavLinks />
-        ) : null}
+        {/* ลิงก์ไปหมวดต่าง ๆ ของหน้าแรกไม่กางบนแถบอีกแล้ว — อยู่ในแฮมเบอร์เกอร์ทุกความกว้าง
+            ตามที่ผู้ใช้กำหนด (ดู MobileNav breakpoint="always" ด้านล่าง) แถบจึงเหลือแค่โลโก้
+            กับกลุ่มปุ่มลงมือทำ และงบความกว้างที่เคยต้องวัดทุกครั้งที่เพิ่มของก็หมดปัญหาไปด้วย */}
 
-        <div
-          className={`ml-auto flex items-center gap-3 ${sectionNav ? "xl:ml-8" : ""}`}
-        >
+        <div className="ml-auto flex items-center gap-3">
           {signedIn ? (
             <>
               {/* เมนูใช้งาน (หลังบ้าน/คำนวณผ่อน) โผล่จาก lg เท่านั้น ไม่ใช่ sm — จอแท็บเล็ต
@@ -102,7 +97,8 @@ export async function SiteHeader({
                   (ดู MobileNav — แต่ละปุ่มกันการโผล่ซ้ำเองด้วย lg:hidden)
 
                   บนหน้าแรก "หลังบ้าน" ไม่ขึ้นบนแถบเลยไม่ว่าจอกว้างแค่ไหน (ยังอยู่ในแฮมเบอร์เกอร์เท่านั้น)
-                  เพราะพื้นที่ถูกเมนูห้ารายการกินไปแล้ว และไม่ใช่สิ่งที่คนมาหน้าแรกกำลังมองหา */}
+                  เพราะไม่ใช่สิ่งที่คนมาหน้าแรกกำลังมองหา (เดิมมีเหตุผลเรื่องพื้นที่ด้วย
+                  แต่พอลิงก์หมวดย้ายเข้าแฮมเบอร์เกอร์แล้ว เหลือเหตุผลเรื่องความตั้งใจอย่างเดียว) */}
               {hasUtilityLinks ? (
                 <div className="hidden items-center gap-2 lg:flex">
                   {showBackOfficeLink ? (
@@ -111,11 +107,19 @@ export async function SiteHeader({
                       หลังบ้าน
                     </Link>
                   ) : null}
+                  {/* สองปุ่มนี้เห็นเฉพาะร้านที่เป็นพาร์ทเนอร์แล้ว (isActivePartner) — เงื่อนไขเดียวกับ
+                      ที่ guardPartnerAccess ใช้กันหน้า /partner/* จริง ๆ ซ่อนปุ่มเฉย ๆ ไม่ใช่การกันสิทธิ์ */}
                   {isActivePartner ? (
-                    <Link href="/partner/calculator" className={ctaClass("nav-ghost")}>
-                      <Calculator aria-hidden className="size-4" />
-                      คำนวณผ่อนมือถือ
-                    </Link>
+                    <>
+                      <Link href="/partner/products" className={ctaClass("nav-ghost")}>
+                        <Tags aria-hidden className="size-4" />
+                        สินค้าราคาจัด
+                      </Link>
+                      <Link href="/partner/calculator" className={ctaClass("nav-ghost")}>
+                        <Calculator aria-hidden className="size-4" />
+                        คำนวณผ่อนมือถือ
+                      </Link>
+                    </>
                   ) : null}
                 </div>
               ) : null}
@@ -158,8 +162,9 @@ export async function SiteHeader({
                     {email.charAt(0).toUpperCase()}
                   </span>
                 ) : null}
-                {/* หน้าแรกโชว์แค่อักษรย่อ ไม่โชว์อีเมล — เมนูห้ารายการกินความกว้างไปแล้ว
-                    หน้าอื่นที่ไม่มีเมนูนั้นมีที่พอ จึงกางอีเมลเต็มได้ */}
+                {/* หน้าที่เปิด sectionNav โชว์แค่อักษรย่อ ไม่กางอีเมลบนแถบ — อีเมลเต็มอยู่ใน
+                    แผงแฮมเบอร์เกอร์แล้ว (ดู actions ด้านล่าง) กางซ้ำบนแถบด้วยคือของซ้ำ
+                    หน้าอื่นไม่มีแผงนั้นให้พึ่ง จึงกางเต็มบนแถบตั้งแต่ xl */}
                 {email && !sectionNav ? (
                   <span className="hidden max-w-[15ch] truncate pl-0.5 text-fine text-white/70 xl:inline">
                     {email}
@@ -217,8 +222,9 @@ export async function SiteHeader({
             <MobileNav
               showSectionLinks={sectionNav}
               // จุดที่แผงต้องเริ่มรับช่วง เลือกจากของที่ "หนักที่สุด" ที่มันเก็บอยู่:
-              // เมนูห้ารายการ (xl) > ปุ่มใช้งานหลังบ้าน/คำนวณผ่อน (lg) > แค่ "ใบสมัครของฉัน" (sm)
-              breakpoint={sectionNav ? "xl" : hasUtilityLinks ? "lg" : "sm"}
+              // ลิงก์หมวดของหน้าแรก (ทุกความกว้าง) > ปุ่มใช้งานหลังบ้าน/คำนวณผ่อน (lg)
+              // > แค่ "ใบสมัครของฉัน" (sm)
+              breakpoint={sectionNav ? "always" : hasUtilityLinks ? "lg" : "sm"}
               actions={
                 <>
                   {isStaff ? (
@@ -231,13 +237,22 @@ export async function SiteHeader({
                     </Link>
                   ) : null}
                   {isActivePartner ? (
-                    <Link
-                      href="/partner/calculator"
-                      className={ctaClass("nav-ghost", "w-full lg:hidden")}
-                    >
-                      <Calculator aria-hidden className="size-4" />
-                      คำนวณผ่อนมือถือ
-                    </Link>
+                    <>
+                      <Link
+                        href="/partner/products"
+                        className={ctaClass("nav-ghost", "w-full lg:hidden")}
+                      >
+                        <Tags aria-hidden className="size-4" />
+                        สินค้าราคาจัด
+                      </Link>
+                      <Link
+                        href="/partner/calculator"
+                        className={ctaClass("nav-ghost", "w-full lg:hidden")}
+                      >
+                        <Calculator aria-hidden className="size-4" />
+                        คำนวณผ่อนมือถือ
+                      </Link>
+                    </>
                   ) : null}
                   {/* ปุ่มหลักย้ายมาที่นี่เฉพาะจอมือถือ (ต่ำกว่า sm) — sm:hidden กันไม่ให้ซ้ำกับ
                       ตัวที่โผล่บนแถบแล้วตั้งแต่ sm ขึ้นไป (ดู wrapper ของปุ่มนี้ด้านบน) */}
@@ -248,17 +263,23 @@ export async function SiteHeader({
                     </Link>
                   ) : null}
                   {/* อีเมล/ออกจากระบบ อยู่ในแผงเฉพาะหน้าแรก — หน้าอื่นมีกลุ่มบัญชีโชว์อยู่แล้วตั้งแต่ sm */}
+                  {/* sm:px-3.5 เท่ากับ padding ของรายการลิงก์ในการ์ดดรอปดาวน์ ไม่งั้นบรรทัดอีเมล
+                      จะเยื้องซ้ายกว่าทุกอย่างในการ์ด 14px ซึ่งเห็นชัดเพราะการ์ดกว้างแค่ 20rem */}
                   {sectionNav && signedIn && email ? (
-                    <p className="truncate pt-1 text-fine text-white/45">{email}</p>
+                    <p className="truncate pt-1 text-fine text-white/45 sm:px-3.5 sm:pb-0.5">
+                      {email}
+                    </p>
                   ) : null}
                   {sectionNav && signedIn ? signOutButton : null}
+                  {/* sm:hidden กันซ้ำกับปุ่มเดียวกันที่โผล่บนแถบตั้งแต่ sm ขึ้นไป
+                      เดิมไม่ต้องกัน เพราะทั้งแผงถูกซ่อนที่ xl อยู่แล้ว แต่ตอนนี้แผงอยู่ทุกความกว้าง */}
                   {sectionNav && !signedIn ? (
                     <AuthCta
                       signedIn={false}
                       href="/me"
                       loginRedirect="/after-login"
                       variant="nav-ghost"
-                      className="w-full"
+                      className="w-full sm:hidden"
                     >
                       <UserRound aria-hidden className="size-4" />
                       เข้าสู่ระบบ

@@ -16,7 +16,7 @@ import { SECTION_LINKS } from "./nav-links";
  * (บั๊กที่เจอจริง: ใช้ null แทนสองความหมายนี้ปนกัน ทำให้ "หน้าหลัก" ติด active แม้อยู่หน้า /apply)
  *
  * ไฟล์นี้แยกเป็น client อย่างเดียว (ไม่ import อะไรที่แตะ MongoDB/Drive) เพื่อให้ SiteHeader
- * (server component ที่มี sign-out server action ฝังอยู่) ยังคงเรียก SectionNavLinks/MobileNav
+ * (server component ที่มี sign-out server action ฝังอยู่) ยังคงเรียก MobileNav
  * ซึ่งเป็น client component ลูกได้ตามเดิม โดยตัวมันเองไม่ต้องกลายเป็น client
  */
 export function useActiveSectionId(): string {

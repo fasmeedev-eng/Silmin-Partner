@@ -31,3 +31,12 @@ export async function getDb(): Promise<Db> {
   const client = await clientPromise();
   return client.db();
 }
+
+/**
+ * ตัว client เอง — ใช้เฉพาะเวลาต้องเปิด session สำหรับ transaction
+ * (client.startSession() ต้องมาจาก client ตัวเดียวกับที่ทำงานอยู่ ใช้ตัวใหม่ไม่ได้)
+ * งานอ่าน/เขียนธรรมดาให้ใช้ getDb() พอ
+ */
+export async function getMongoClient(): Promise<MongoClient> {
+  return clientPromise();
+}

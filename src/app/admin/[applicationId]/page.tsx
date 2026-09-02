@@ -86,7 +86,7 @@ export default async function AdminApplicationPage({
     data.shop.type === "other" ? data.shop.typeOther : labelOf(SHOP_TYPES, data.shop.type);
 
   return (
-    <main className="mx-auto w-full max-w-[1180px] px-6 py-10 lg:px-8 lg:py-12">
+    <main className="mx-auto w-full max-w-[1440px] px-6 py-10 lg:px-8 lg:py-12">
       <Link
         href="/admin"
         className="inline-flex min-h-[48px] items-center gap-2 text-body text-ink-80 transition-colors hover:text-ink"
@@ -169,7 +169,7 @@ export default async function AdminApplicationPage({
           <DocumentsCard documents={documents} canView={canViewDocuments} />
         </div>
 
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2 max-h-[91vh] overflow-y-auto rounded-lg">
           <SummaryCard title="ข้อมูลสรุปใบสมัคร">
             <SummaryRow label="เลขที่ใบสมัคร" value={<span className="tabular-nums">{application.applicationId}</span>} />
             <SummaryRow

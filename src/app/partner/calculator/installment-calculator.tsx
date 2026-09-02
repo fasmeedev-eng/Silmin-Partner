@@ -158,8 +158,8 @@ export function InstallmentCalculator() {
       `ยอดจัดไฟแนนซ์: ${baht.format(financed)} บาท`,
       `ประเภทเครื่อง: ${deviceType === "new" ? "มือ 1" : "มือ 2"}`,
       "",
-      "งวดผ่อน\tผ่อนต่อเดือน\tอัตรากำไร",
-      ...rows.map((r) => `${r.months} งวด\t${formatShopBaht(r.monthly)} บาท\t${r.profitRatePercent}%`),
+      "งวดผ่อน\tผ่อนต่อเดือน",
+      ...rows.map((r) => `${r.months} งวด\t${formatShopBaht(r.monthly)} บาท`),
     ];
     try {
       await navigator.clipboard.writeText(lines.join("\n"));
@@ -198,7 +198,7 @@ export function InstallmentCalculator() {
         </div>
 
         <div className="mt-6 space-y-6">
-          <Field id="price" label="ราคามือถือ (บาท)">
+          <Field id="price" label="ราคากดขาย">
             <div className="relative">
               <TextInput
                 id="price"
@@ -382,9 +382,6 @@ export function InstallmentCalculator() {
                   <th scope="col" className="px-6 pt-4 text-right font-normal">
                     ค่างวดต่อเดือน
                   </th>
-                  <th scope="col" className="px-6 pt-4 text-right font-normal">
-                    อัตรากำไร
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -397,16 +394,9 @@ export function InstallmentCalculator() {
                       {row.months} งวด
                     </th>
                     <td className="px-6 py-4 text-right text-lead font-semibold tabular-nums text-gold print:text-ink">
-                      {formatShopBaht(row.monthly)}
-                    </td>
-                    <td className="px-6 py-4 text-right text-caption tabular-nums text-white/70 print:text-ink-80">
-                      <span className="inline-flex items-center gap-2">
-                        {row.profitRatePercent}%
-                        {row.profitRatePercent === cheapestRate ? (
-                          <span className="rounded-full bg-brand px-2 py-0.5 text-fine font-semibold text-on-brand">
-                            แนะนำ
-                          </span>
-                        ) : null}
+                      <span className="inline-flex items-center justify-end gap-2">
+                        {formatShopBaht(row.monthly)}
+
                       </span>
                     </td>
                   </tr>

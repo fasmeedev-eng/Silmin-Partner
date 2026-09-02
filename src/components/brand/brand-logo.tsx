@@ -29,18 +29,16 @@ export function BrandLogo({
         className="h-9 w-auto"
         sizes="40px"
       />
-      <span className="flex items-baseline gap-2">
+      <span className="flex items-baseline flex-col gap-1">
         <span
-          className={`text-h3 font-bold leading-none tracking-tight ${
-            tone === "dark" ? "text-white" : "text-ink"
-          }`}
+          className={`text-h4 font-bold leading-none tracking-tight ${tone === "dark" ? "text-white" : "text-ink"
+            }`}
         >
           SG PLUS
         </span>
         <span
-          className={`text-fine font-semibold uppercase leading-none tracking-[0.2em] ${
-            tone === "dark" ? "text-white/50" : "text-ink-48"
-          }`}
+          className={`text-[10px] font-semibold uppercase leading-none tracking-[0.2em] ${tone === "dark" ? "text-white/50" : "text-ink-48"
+            }`}
         >
           partner
         </span>

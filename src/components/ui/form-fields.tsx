@@ -55,12 +55,14 @@ export function Field({
  *
  * focus-visible:outline-none กันเส้นโฟกัสของเบราว์เซอร์มาซ้อนกับ ring ที่วาดเอง (เห็นเป็นเส้นคู่)
  */
-const controlBase =
+/** ส่งออกไว้ให้ช่องกรอกที่ต้องเขียนเอง (เช่น select ที่ค่ากับป้ายไม่ใช่ตัวเดียวกัน)
+ *  ใช้คลาสชุดเดียวกันได้ แทนที่จะคัดลอกไปแล้ววันหนึ่งวงโฟกัสของสองที่ไม่เหมือนกัน */
+export const controlBase =
   "w-full min-h-[52px] rounded-input bg-canvas px-4 text-body text-ink ring-1 ring-hairline ring-inset " +
   "placeholder:text-ink-48 transition-shadow focus:outline-none focus-visible:outline-none " +
   "focus:ring-2 focus:ring-ink";
 
-const controlError = "ring-2 ring-danger bg-danger/[0.04]";
+export const controlError = "ring-2 ring-danger bg-danger/[0.04]";
 
 export function TextInput({
   id,
